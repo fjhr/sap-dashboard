@@ -23,31 +23,35 @@ var STOCK_SOLO_CON_STOCK = true; // true = solo articulos con stock > 0
 var STOCK_MAX_PAGINAS = 100;     // tope de seguridad (100 pag x 100 items = 10.000)
 
 function doGet(e) {
-  var action = e && e.parameter && e.parameter.action;
-  if (action === 'stock') {
-    return serveStock_(e);
-  }
+  var params = (e && e.parameter) ? e.parameter : {};
+  var action = params.action;
 
-  // --- Ventas (sin cambios) ---
+  if (action === 'stock') return serveStock_(e);
+
+  // Soporte para ?daysBack=N (permite pedir más historial para comparativas)
+  var daysBack = params.daysBack ? parseInt(params.daysBack, 10) : null;
+  var cacheKey = daysBack ? CACHE_KEY + '_' + daysBack : CACHE_KEY;
+
   var cache = CacheService.getScriptCache();
-  var cached = cache.get(CACHE_KEY);
-  var data = cached ? JSON.parse(cached) : fetchAndCache();
+  var cached = cache.get(cacheKey);
+  var data = cached ? JSON.parse(cached) : fetchAndCache(daysBack, cacheKey);
 
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ============================================================
-// VENTAS (codigo original, sin cambios)
+// VENTAS
 // ============================================================
 
-function fetchAndCache() {
-  var data = fetchSAPData();
-  CacheService.getScriptCache().put(CACHE_KEY, JSON.stringify(data), CACHE_TTL);
+function fetchAndCache(daysBackOverride, cacheKey) {
+  var data = fetchSAPData(daysBackOverride);
+  var key = cacheKey || CACHE_KEY;
+  CacheService.getScriptCache().put(key, JSON.stringify(data), CACHE_TTL);
   return data;
 }
 
-function fetchSAPData() {
+function fetchSAPData(daysBackOverride) {
   var props = PropertiesService.getScriptProperties();
   var baseUrl   = props.getProperty('SAP_BASE_URL');
   var companyDb = props.getProperty('SAP_COMPANY_DB');
@@ -69,7 +73,7 @@ function fetchSAPData() {
   var sessionId = JSON.parse(loginResp.getContentText()).SessionId;
   var reqHeaders = { 'Cookie': 'B1SESSION=' + sessionId, 'Prefer': 'odata.maxpagesize=100' };
 
-  var daysBack = parseInt(props.getProperty('SAP_DAYS_BACK') || '5', 10);
+  var daysBack = daysBackOverride || parseInt(props.getProperty('SAP_DAYS_BACK') || '5', 10);
   var cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - daysBack);
   var dateFilter = Utilities.formatDate(cutoff, Session.getScriptTimeZone(), "yyyy-MM-dd");

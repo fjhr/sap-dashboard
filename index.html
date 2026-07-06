@@ -4,471 +4,506 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard SAP B1</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#6366f1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
   <style>
-    body { background: #0f172a; }
-    .card { background: #1e293b; border: 1px solid #334155; }
-    .kpi-value { font-variant-numeric: tabular-nums; }
-    #salesChart { max-height: 320px; }
-    #stockChart { max-height: 300px; }
-    .tab-active { background: #4f46e5; color: #fff; }
-    .tab-inactive { color: #94a3b8; }
-    .tab-inactive:hover { color: #e2e8f0; background: #1e293b; }
+    :root {
+      --bg:#0f172a;--card:#1e293b;--border:#334155;
+      --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+      --inp:#1e293b;--inp-b:#475569;
+    }
+    .light{
+      --bg:#f1f5f9;--card:#ffffff;--border:#e2e8f0;
+      --text:#1e293b;--text2:#475569;--text3:#94a3b8;
+      --inp:#ffffff;--inp-b:#cbd5e1;
+    }
+    body{background:var(--bg);color:var(--text);transition:background .3s,color .3s;}
+    .card{background:var(--card);border:1px solid var(--border);transition:background .3s;}
+    .t2{color:var(--text2)}.t3{color:var(--text3)}
+    .inp{background:var(--inp);border:1px solid var(--inp-b);color:var(--text);}
+    .inp:focus{outline:none;border-color:#6366f1;}
+    .kv{font-variant-numeric:tabular-nums;}
+    .tab-a{background:#4f46e5;color:#fff;}
+    .tab-i{color:var(--text2);}
+    .tab-i:hover{color:var(--text);background:var(--card);}
+    .alert-card{background:rgba(239,68,68,.1)!important;border-color:rgba(239,68,68,.4)!important;}
+    .badge-low{background:#ef4444;color:#fff;font-size:.65rem;padding:1px 5px;border-radius:9999px;display:inline-block;}
+    .up{color:#22c55e}.dn{color:#ef4444}.ne{color:var(--text2)}
+    canvas{max-height:320px;}
   </style>
 </head>
-<body class="text-slate-100 min-h-screen p-4 md:p-8">
+<body class="min-h-screen p-4 md:p-8">
 
-  <!-- Header -->
   <header class="mb-6">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
       <div>
-        <h1 class="text-2xl md:text-3xl font-bold text-white">📊 Dashboard SAP B1</h1>
-        <p id="subtitle" class="text-slate-400 text-sm mt-1">Ventas · Últimos 5 días</p>
+        <h1 class="text-2xl md:text-3xl font-bold">📊 Dashboard SAP B1</h1>
+        <p id="subtitle" class="t2 text-sm mt-1">Ventas · Últimos 14 días</p>
       </div>
-      <div class="text-right">
-        <span id="lastUpdated" class="text-xs text-slate-500">Cargando...</span>
-        <button onclick="refreshActive()" class="ml-3 px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 rounded-lg transition">↻ Actualizar</button>
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="lastUpdated" class="t3 text-xs"></span>
+        <button onclick="toggleTheme()" id="btnTheme" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Cambiar tema">🌙</button>
+        <button onclick="refreshActive()" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">↻ Actualizar</button>
       </div>
     </div>
   </header>
 
-  <!-- Tabs -->
   <nav class="mb-6 flex gap-2">
-    <button id="btnTabVentas" onclick="switchTab('ventas')" class="tab-active px-4 py-2 rounded-lg text-sm font-semibold transition">Ventas</button>
-    <button id="btnTabStock" onclick="switchTab('stock')" class="tab-inactive px-4 py-2 rounded-lg text-sm font-semibold transition">Stock</button>
+    <button id="btnTabVentas" onclick="switchTab('ventas')" class="tab-a px-4 py-2 rounded-lg text-sm font-semibold transition">💰 Ventas</button>
+    <button id="btnTabStock"  onclick="switchTab('stock')"  class="tab-i px-4 py-2 rounded-lg text-sm font-semibold transition">📦 Stock</button>
   </nav>
 
-  <!-- ==================== TAB VENTAS (original) ==================== -->
+  <!-- ====== TAB VENTAS ====== -->
   <div id="tabVentas">
+    <div class="card rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end">
+      <div><label class="t3 text-xs block mb-1">Desde</label><input type="date" id="filtroDesde" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="applyFilters()"/></div>
+      <div><label class="t3 text-xs block mb-1">Hasta</label><input type="date" id="filtroHasta" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="applyFilters()"/></div>
+      <div><label class="t3 text-xs block mb-1">Cliente</label><input type="text" id="filtroCliente" placeholder="Buscar cliente..." class="inp rounded-lg px-3 py-1.5 text-sm w-44" oninput="applyFilters()"/></div>
+      <div><label class="t3 text-xs block mb-1">Meta diaria (CLP)</label><input type="number" id="metaDiaria" placeholder="0" class="inp rounded-lg px-3 py-1.5 text-sm w-36" oninput="applyFilters()"/></div>
+      <button onclick="clearVentasFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition">✕ Limpiar</button>
+    </div>
 
     <div id="loadingState" class="text-center py-20">
       <div class="inline-block w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-      <p class="mt-3 text-slate-400">Consultando SAP...</p>
+      <p class="mt-3 t2">Consultando SAP...</p>
     </div>
     <div id="errorState" class="hidden text-center py-20">
       <p class="text-red-400 text-lg">⚠️ Error al cargar datos</p>
-      <p id="errorMsg" class="text-slate-500 text-sm mt-2"></p>
+      <p id="errorMsg" class="t3 text-sm mt-2"></p>
     </div>
 
-    <div id="dashboard" class="hidden space-y-6">
+    <div id="dashboard" class="hidden space-y-5">
 
       <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="card rounded-xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Total Facturado</p>
-          <p id="kpiTotal" class="kpi-value text-2xl font-bold text-emerald-400">—</p>
-          <p class="text-slate-500 text-xs mt-1">CLP</p>
+        <div class="card rounded-xl p-5" id="cardTotal">
+          <p class="t2 text-xs uppercase tracking-wider mb-1">Total Facturado</p>
+          <p id="kpiTotal" class="kv text-2xl font-bold text-emerald-400">—</p>
+          <p id="kpiTotalTrend" class="text-xs mt-1 ne">— vs período anterior</p>
         </div>
         <div class="card rounded-xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Facturas</p>
-          <p id="kpiInvoices" class="kpi-value text-2xl font-bold text-indigo-400">—</p>
-          <p class="text-slate-500 text-xs mt-1">documentos</p>
+          <p class="t2 text-xs uppercase tracking-wider mb-1">Facturas</p>
+          <p id="kpiInvoices" class="kv text-2xl font-bold text-indigo-400">—</p>
+          <p id="kpiInvoicesTrend" class="text-xs mt-1 ne">— vs período anterior</p>
         </div>
         <div class="card rounded-xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Pedidos</p>
-          <p id="kpiOrders" class="kpi-value text-2xl font-bold text-sky-400">—</p>
-          <p class="text-slate-500 text-xs mt-1">documentos</p>
+          <p class="t2 text-xs uppercase tracking-wider mb-1">Pedidos</p>
+          <p id="kpiOrders" class="kv text-2xl font-bold text-sky-400">—</p>
+          <p id="kpiOrdersTrend" class="text-xs mt-1 ne">— vs período anterior</p>
         </div>
         <div class="card rounded-xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Entregas</p>
-          <p id="kpiDeliveries" class="kpi-value text-2xl font-bold text-violet-400">—</p>
-          <p class="text-slate-500 text-xs mt-1">documentos</p>
+          <p class="t2 text-xs uppercase tracking-wider mb-1">Entregas</p>
+          <p id="kpiDeliveries" class="kv text-2xl font-bold text-violet-400">—</p>
+          <p id="kpiDeliveriesTrend" class="text-xs mt-1 ne">— vs período anterior</p>
         </div>
       </section>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="card rounded-xl p-5">
-          <h2 class="text-sm font-semibold text-slate-300 mb-4">Facturación por Día (CLP)</h2>
+          <h2 class="text-sm font-semibold t2 mb-4">Facturación por Día (CLP)</h2>
           <canvas id="salesChart"></canvas>
         </div>
+        <div class="card rounded-xl p-5">
+          <h2 class="text-sm font-semibold t2 mb-4">Tendencia 14 días</h2>
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="card rounded-xl p-5 flex flex-col items-center">
-          <h2 class="text-sm font-semibold text-slate-300 mb-4 self-start">Distribución de Documentos</h2>
-          <canvas id="donutChart" style="max-height:280px;max-width:280px;"></canvas>
-        </div>
-      </div>
-
-      <div class="card rounded-xl p-5">
-        <h2 class="text-sm font-semibold text-slate-300 mb-4">Top 5 Clientes por Facturación</h2>
-        <div id="topClients" class="space-y-2"></div>
-      </div>
-
-      <div class="card rounded-xl p-5">
-        <h2 class="text-sm font-semibold text-slate-300 mb-4">Detalle de Facturas</h2>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-slate-400 border-b border-slate-700 text-left">
-                <th class="pb-2 pr-4">N° Doc</th>
-                <th class="pb-2 pr-4">Cliente</th>
-                <th class="pb-2 pr-4">Fecha</th>
-                <th class="pb-2 pr-4 text-right">Total (CLP)</th>
-                <th class="pb-2">Estado</th>
-              </tr>
-            </thead>
-            <tbody id="invoicesTable" class="divide-y divide-slate-800"></tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-  </div><!-- /tabVentas -->
-
-  <!-- ==================== TAB STOCK (nuevo) ==================== -->
-  <div id="tabStock" class="hidden">
-
-    <div id="stockLoading" class="text-center py-20">
-      <div class="inline-block w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-      <p class="mt-3 text-slate-400">Consultando stock en SAP...</p>
-      <p class="text-slate-500 text-xs mt-1">La primera carga puede tardar hasta 30 segundos</p>
-    </div>
-    <div id="stockError" class="hidden text-center py-20">
-      <p class="text-red-400 text-lg">⚠️ Error al cargar stock</p>
-      <p id="stockErrorMsg" class="text-slate-500 text-sm mt-2"></p>
-    </div>
-
-    <div id="stockContent" class="hidden space-y-6">
-
-      <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="card rounded-xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Artículos con Stock</p>
-          <p id="kpiArticulos" class="kpi-value text-2xl font-bold text-emerald-400">—</p>
-          <p class="text-slate-500 text-xs mt-1">artículos</p>
+          <h2 class="text-sm font-semibold t2 mb-4 self-start">Actual vs Período Anterior</h2>
+          <canvas id="donutChart" style="max-height:260px;max-width:260px;"></canvas>
         </div>
         <div class="card rounded-xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Unidades Totales</p>
-          <p id="kpiUnidades" class="kpi-value text-2xl font-bold text-indigo-400">—</p>
-          <p class="text-slate-500 text-xs mt-1">unidades en inventario</p>
+          <h2 class="text-sm font-semibold t2 mb-4">Top 5 Clientes</h2>
+          <div id="topClients" class="space-y-3"></div>
         </div>
-        <div class="card rounded-xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Bodegas</p>
-          <p id="kpiBodegas" class="kpi-value text-2xl font-bold text-sky-400">—</p>
-          <p class="text-slate-500 text-xs mt-1">bodegas activas</p>
-        </div>
-      </section>
-
-      <div class="card rounded-xl p-5">
-        <h2 class="text-sm font-semibold text-slate-300 mb-4">Unidades por Bodega</h2>
-        <canvas id="stockChart"></canvas>
       </div>
 
       <div class="card rounded-xl p-5">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <h2 class="text-sm font-semibold text-slate-300">Stock por Artículo y Bodega</h2>
-          <input id="stockSearch" type="text" placeholder="Buscar por código o nombre..."
-            class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-full md:w-72" />
+          <div>
+            <h2 class="text-sm font-semibold t2">Detalle de Facturas</h2>
+            <p id="ventasCount" class="t3 text-xs mt-0.5"></p>
+          </div>
+          <button onclick="exportVentasCSV()" class="px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
         </div>
-        <p id="stockCount" class="text-xs text-slate-500 mb-3"></p>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead id="stockTableHead"></thead>
-            <tbody id="stockTableBody" class="divide-y divide-slate-800"></tbody>
+            <thead><tr class="t2 border-b text-left" style="border-color:var(--border)">
+              <th class="pb-2 pr-4">N° Doc</th><th class="pb-2 pr-4">Cliente</th>
+              <th class="pb-2 pr-4">Fecha</th><th class="pb-2 pr-4 text-right">Total (CLP)</th><th class="pb-2">Estado</th>
+            </tr></thead>
+            <tbody id="invoicesTable"></tbody>
           </table>
         </div>
       </div>
-
     </div>
-  </div><!-- /tabStock -->
+  </div>
+
+  <!-- ====== TAB STOCK ====== -->
+  <div id="tabStock" class="hidden">
+    <div class="card rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end">
+      <div><label class="t3 text-xs block mb-1">Bodega</label>
+        <select id="filtroBodega" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="applyStockFilters()">
+          <option value="">Todas las bodegas</option>
+        </select>
+      </div>
+      <div><label class="t3 text-xs block mb-1">Buscar artículo</label><input type="text" id="stockSearch" placeholder="Código o nombre..." class="inp rounded-lg px-3 py-1.5 text-sm w-52" oninput="applyStockFilters()"/></div>
+      <div><label class="t3 text-xs block mb-1">Stock mínimo (alerta)</label><input type="number" id="minStock" placeholder="0" class="inp rounded-lg px-3 py-1.5 text-sm w-32" oninput="applyStockFilters()"/></div>
+      <button onclick="clearStockFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition">✕ Limpiar</button>
+    </div>
+
+    <div id="stockLoading" class="text-center py-20">
+      <div class="inline-block w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      <p class="mt-3 t2">Consultando stock en SAP...</p>
+      <p class="t3 text-xs mt-1">La primera carga puede tardar hasta 30 segundos</p>
+    </div>
+    <div id="stockError" class="hidden text-center py-20">
+      <p class="text-red-400 text-lg">⚠️ Error al cargar stock</p>
+      <p id="stockErrorMsg" class="t3 text-sm mt-2"></p>
+    </div>
+
+    <div id="stockContent" class="hidden space-y-5">
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="card rounded-xl p-5"><p class="t2 text-xs uppercase tracking-wider mb-1">Artículos con Stock</p><p id="kpiArticulos" class="kv text-2xl font-bold text-emerald-400">—</p><p class="t3 text-xs mt-1">artículos</p></div>
+        <div class="card rounded-xl p-5"><p class="t2 text-xs uppercase tracking-wider mb-1">Unidades Totales</p><p id="kpiUnidades" class="kv text-2xl font-bold text-indigo-400">—</p><p class="t3 text-xs mt-1">unidades en inventario</p></div>
+        <div class="card rounded-xl p-5"><p class="t2 text-xs uppercase tracking-wider mb-1">Bodegas</p><p id="kpiBodegas" class="kv text-2xl font-bold text-sky-400">—</p><p class="t3 text-xs mt-1">bodegas activas</p></div>
+      </section>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="card rounded-xl p-5">
+          <h2 class="text-sm font-semibold t2 mb-4">Unidades por Bodega</h2>
+          <canvas id="stockChart"></canvas>
+        </div>
+        <div class="card rounded-xl p-5">
+          <h2 class="text-sm font-semibold t2 mb-4">🔴 Alertas de Stock Bajo</h2>
+          <div id="stockAlerts" class="space-y-2 max-h-72 overflow-y-auto text-sm">
+            <p class="t3 text-xs">Define un stock mínimo en el filtro para ver alertas.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card rounded-xl p-5">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-sm font-semibold t2">Stock por Artículo y Bodega</h2>
+            <p id="stockCount" class="t3 text-xs mt-0.5"></p>
+          </div>
+          <button onclick="exportStockCSV()" class="px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead id="stockTableHead"></thead>
+            <tbody id="stockTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
     // =========================================================
     // CONFIGURACIÓN
     // =========================================================
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4hbghlmaLSHIolQ11c5cGafG-OJbTlBkKRS4PvRFQO_l3Pr4ocwEnUiedq2R9qkUX/exec';
-    const STOCK_URL = 'https://script.google.com/macros/s/AKfycbwMOqbjNAgWsvwk6nHalxGZK8XkK8EEXt7XdbA_XeFT-GsW6NOoQkJm9-snx0GCb-4/exec?action=stock';
-    const MAX_FILAS = 300; // máximo de filas a dibujar en la tabla de stock
+    const STOCK_URL       = 'https://script.google.com/macros/s/AKfycbwMOqbjNAgWsvwk6nHalxGZK8XkK8EEXt7XdbA_XeFT-GsW6NOoQkJm9-snx0GCb-4/exec?action=stock';
+    const DAYS_BACK = 14; // días totales a pedir (14 = 7 actuales + 7 anteriores)
+    const PERIOD    = 7;  // días de cada período para comparativa
+    const MAX_FILAS = 300;
     // =========================================================
 
-    const fmt = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
-    const fmtNum = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 });
-    let salesChart, donutChart, stockChart;
-    let tabActual = 'ventas';
-    let stockData = null; // caché en memoria de la pestaña stock
+    const fmt    = new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});
+    const fmtNum = new Intl.NumberFormat('es-CL',{maximumFractionDigits:2});
 
-    // ---------------- Tabs ----------------
-    function switchTab(tab) {
-      tabActual = tab;
-      const esVentas = tab === 'ventas';
-      document.getElementById('tabVentas').classList.toggle('hidden', !esVentas);
-      document.getElementById('tabStock').classList.toggle('hidden', esVentas);
-      document.getElementById('btnTabVentas').className = (esVentas ? 'tab-active' : 'tab-inactive') + ' px-4 py-2 rounded-lg text-sm font-semibold transition';
-      document.getElementById('btnTabStock').className = (!esVentas ? 'tab-active' : 'tab-inactive') + ' px-4 py-2 rounded-lg text-sm font-semibold transition';
-      document.getElementById('subtitle').textContent = esVentas ? 'Ventas · Últimos 5 días' : 'Stock por bodega';
-      if (!esVentas && !stockData) loadStock();
+    let salesChart,donutChart,trendChart,stockChart;
+    let tabActual='ventas', rawData=null, stockData=null, filteredInvoices=[];
+
+    // ---- Tema ----
+    function toggleTheme(){
+      const l=document.body.classList.toggle('light');
+      document.getElementById('btnTheme').textContent=l?'☀️':'🌙';
+      localStorage.setItem('theme',l?'light':'dark');
     }
-
-    function refreshActive() {
-      if (tabActual === 'ventas') loadData();
-      else loadStock();
-    }
-
-    // ---------------- VENTAS (original) ----------------
-    async function loadData() {
-      showLoading();
-      try {
-        const res = await fetch(APPS_SCRIPT_URL);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        renderDashboard(data);
-      } catch (err) {
-        showError(err.message);
+    (function(){
+      if(localStorage.getItem('theme')==='light'){
+        document.body.classList.add('light');
+        document.getElementById('btnTheme').textContent='☀️';
       }
+    })();
+
+    // ---- Tabs ----
+    function switchTab(tab){
+      tabActual=tab;const e=tab==='ventas';
+      document.getElementById('tabVentas').classList.toggle('hidden',!e);
+      document.getElementById('tabStock').classList.toggle('hidden',e);
+      document.getElementById('btnTabVentas').className=(e?'tab-a':'tab-i')+' px-4 py-2 rounded-lg text-sm font-semibold transition';
+      document.getElementById('btnTabStock').className=(!e?'tab-a':'tab-i')+' px-4 py-2 rounded-lg text-sm font-semibold transition';
+      document.getElementById('subtitle').textContent=e?'Ventas · Últimos 14 días':'Stock por bodega';
+      if(!e&&!stockData)loadStock();
+    }
+    function refreshActive(){tabActual==='ventas'?loadData():loadStock(true);}
+
+    // =========================================================
+    // VENTAS
+    // =========================================================
+    async function loadData(){
+      showLoading();
+      try{
+        const res=await fetch(`${APPS_SCRIPT_URL}?daysBack=${DAYS_BACK}`);
+        if(!res.ok)throw new Error('HTTP '+res.status);
+        rawData=await res.json();
+        setDefaultFilters();
+        applyFilters();
+        document.getElementById('lastUpdated').textContent=
+          'Actualizado: '+(rawData.lastUpdated?new Date(rawData.lastUpdated).toLocaleString('es-CL'):'—');
+      }catch(err){showError(err.message);}
     }
 
-    function renderDashboard(data) {
-      const { invoices = [], orders = [], deliveries = [], lastUpdated } = data;
+    function setDefaultFilters(){
+      const today=new Date();
+      const from=new Date(today);from.setDate(today.getDate()-PERIOD+1);
+      document.getElementById('filtroDesde').value=from.toISOString().substring(0,10);
+      document.getElementById('filtroHasta').value=today.toISOString().substring(0,10);
+    }
 
-      const totalInvoiced = invoices.reduce((s, d) => s + (d.DocTotal || 0), 0);
-      document.getElementById('kpiTotal').textContent = fmt.format(totalInvoiced);
-      document.getElementById('kpiInvoices').textContent = invoices.length;
-      document.getElementById('kpiOrders').textContent = orders.length;
-      document.getElementById('kpiDeliveries').textContent = deliveries.length;
-      document.getElementById('lastUpdated').textContent =
-        'Actualizado: ' + (lastUpdated ? new Date(lastUpdated).toLocaleString('es-CL') : '—');
+    function applyFilters(){
+      if(!rawData)return;
+      const desde=document.getElementById('filtroDesde').value;
+      const hasta=document.getElementById('filtroHasta').value;
+      const cliente=document.getElementById('filtroCliente').value.toLowerCase();
+      const metaDia=parseFloat(document.getElementById('metaDiaria').value)||0;
 
-      renderBarChart(groupByDay(invoices));
-      renderDonut(invoices.length, orders.length, deliveries.length);
-      renderTopClients(invoices);
-      renderTable(invoices);
+      const ok=d=>{
+        const dia=(d.DocDate||'').substring(0,10);
+        if(desde&&dia<desde)return false;
+        if(hasta&&dia>hasta)return false;
+        if(cliente&&!(d.CardName||'').toLowerCase().includes(cliente))return false;
+        return true;
+      };
+      filteredInvoices=(rawData.invoices||[]).filter(ok);
+      const fOrders=(rawData.orders||[]).filter(ok);
+      const fDeliv=(rawData.deliveries||[]).filter(ok);
+      const{current,previous}=splitPeriods(desde,hasta);
+      renderKPIs(filteredInvoices,fOrders,fDeliv,current,previous,metaDia);
+      renderCharts(current,previous,desde,hasta);
+      renderTopClients(filteredInvoices);
+      renderTable(filteredInvoices);
       showDashboard();
     }
 
-    function groupByDay(docs) {
-      const map = {};
-      docs.forEach(d => {
-        const day = (d.DocDate || '').substring(0, 10);
-        if (day) map[day] = (map[day] || 0) + (d.DocTotal || 0);
-      });
-      const sorted = Object.keys(map).sort();
-      return { labels: sorted, values: sorted.map(k => map[k]) };
+    function splitPeriods(desde,hasta){
+      const all=rawData.invoices||[];
+      const today=hasta?new Date(hasta):new Date();
+      const cutCur=desde?new Date(desde):(()=>{const d=new Date(today);d.setDate(today.getDate()-PERIOD+1);return d;})();
+      const cutPrev=new Date(cutCur);cutPrev.setDate(cutCur.getDate()-PERIOD);
+      return{
+        current:all.filter(d=>{const dt=new Date((d.DocDate||'').substring(0,10));return dt>=cutCur&&dt<=today;}),
+        previous:all.filter(d=>{const dt=new Date((d.DocDate||'').substring(0,10));return dt>=cutPrev&&dt<cutCur;})
+      };
     }
 
-    function renderBarChart({ labels, values }) {
-      const ctx = document.getElementById('salesChart').getContext('2d');
-      if (salesChart) salesChart.destroy();
-      salesChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Total (CLP)',
-            data: values,
-            backgroundColor: 'rgba(99,102,241,0.7)',
-            borderColor: 'rgba(99,102,241,1)',
-            borderWidth: 1,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
-            y: { ticks: { color: '#94a3b8', callback: v => fmt.format(v) }, grid: { color: '#334155' } }
-          }
-        }
+    function trend(curr,prev){
+      if(!prev)return{icon:'—',cls:'ne',txt:'— vs período anterior'};
+      const p=((curr-prev)/prev*100);
+      return{icon:p>=0?'▲':'▼',cls:p>=0?'up':'dn',txt:`${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1)}% vs período anterior`};
+    }
+    function setTrend(id,c,p){const t=trend(c,p);const el=document.getElementById(id);el.textContent=t.txt;el.className='text-xs mt-1 '+t.cls;}
+
+    function renderKPIs(inv,ord,del,current,previous,metaDia){
+      const tot=inv.reduce((s,d)=>s+(d.DocTotal||0),0);
+      const prevTot=previous.reduce((s,d)=>s+(d.DocTotal||0),0);
+      const dias=[...new Set(inv.map(d=>(d.DocDate||'').substring(0,10)))].length||1;
+      const promDia=tot/dias;
+      const bajo=metaDia&&promDia<metaDia;
+      const el=document.getElementById('kpiTotal');
+      el.textContent=fmt.format(tot);
+      el.className='kv text-2xl font-bold '+(bajo?'text-red-400':'text-emerald-400');
+      document.getElementById('cardTotal').classList.toggle('alert-card',!!bajo);
+      document.getElementById('kpiInvoices').textContent=inv.length;
+      document.getElementById('kpiOrders').textContent=ord.length;
+      document.getElementById('kpiDeliveries').textContent=del.length;
+      document.getElementById('ventasCount').textContent=`${inv.length} facturas mostradas`;
+      setTrend('kpiTotalTrend',tot,prevTot);
+      setTrend('kpiInvoicesTrend',inv.length,previous.length);
+      setTrend('kpiOrdersTrend',ord.length,previous.length);
+      setTrend('kpiDeliveriesTrend',del.length,previous.length);
+    }
+
+    function byDay(docs){
+      const m={};docs.forEach(d=>{const k=(d.DocDate||'').substring(0,10);if(k)m[k]=(m[k]||0)+(d.DocTotal||0);});return m;
+    }
+    function cc(){return document.body.classList.contains('light')?{g:'#e2e8f0',t:'#475569'}:{g:'#334155',t:'#94a3b8'};}
+
+    function renderCharts(current,previous,desde,hasta){
+      const c=cc();
+      const curMap=byDay(current);const curDays=Object.keys(curMap).sort();
+
+      if(salesChart)salesChart.destroy();
+      salesChart=new Chart(document.getElementById('salesChart').getContext('2d'),{
+        type:'bar',
+        data:{labels:curDays,datasets:[{label:'CLP',data:curDays.map(k=>curMap[k]),backgroundColor:'rgba(99,102,241,.7)',borderColor:'rgba(99,102,241,1)',borderWidth:1,borderRadius:4}]},
+        options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmt.format(v)},grid:{color:c.g}}}}
+      });
+
+      const all14Map=byDay(rawData.invoices||[]);const all14Days=Object.keys(all14Map).sort();
+      if(trendChart)trendChart.destroy();
+      trendChart=new Chart(document.getElementById('trendChart').getContext('2d'),{
+        type:'line',
+        data:{labels:all14Days,datasets:[{label:'Facturación diaria',data:all14Days.map(k=>all14Map[k]),borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.1)',fill:true,tension:.4,pointRadius:4}]},
+        options:{responsive:true,plugins:{legend:{labels:{color:c.t}}},scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmt.format(v)},grid:{color:c.g}}}}
+      });
+
+      if(donutChart)donutChart.destroy();
+      const totCur=current.reduce((s,d)=>s+(d.DocTotal||0),0);
+      const totPrev=previous.reduce((s,d)=>s+(d.DocTotal||0),0);
+      donutChart=new Chart(document.getElementById('donutChart').getContext('2d'),{
+        type:'doughnut',
+        data:{labels:['Período actual','Período anterior'],datasets:[{data:[totCur,totPrev],backgroundColor:['#6366f1','#38bdf8'],borderColor:'var(--card)',borderWidth:3}]},
+        options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:c.t,padding:16}}}}
       });
     }
 
-    function renderDonut(inv, ord, del) {
-      const ctx = document.getElementById('donutChart').getContext('2d');
-      if (donutChart) donutChart.destroy();
-      donutChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Facturas', 'Pedidos', 'Entregas'],
-          datasets: [{
-            data: [inv, ord, del],
-            backgroundColor: ['#6366f1', '#38bdf8', '#a78bfa'],
-            borderColor: '#1e293b',
-            borderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 16 } }
-          }
-        }
-      });
+    function renderTopClients(inv){
+      const m={};inv.forEach(d=>{const n=d.CardName||d.CardCode||'Sin nombre';m[n]=(m[n]||0)+(d.DocTotal||0);});
+      const top=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5);const max=top[0]?.[1]||1;
+      document.getElementById('topClients').innerHTML=top.map(([name,tot])=>`
+        <div><div class="flex justify-between text-xs mb-1"><span class="t2 truncate max-w-xs">${esc(name)}</span><span class="text-emerald-400 font-mono ml-2">${fmt.format(tot)}</span></div>
+        <div class="w-full rounded-full h-1.5" style="background:var(--border)"><div class="bg-emerald-500 h-1.5 rounded-full" style="width:${(tot/max*100).toFixed(1)}%"></div></div></div>`).join('');
     }
 
-    function renderTopClients(invoices) {
-      const map = {};
-      invoices.forEach(d => {
-        const name = d.CardName || d.CardCode || 'Sin nombre';
-        map[name] = (map[name] || 0) + (d.DocTotal || 0);
-      });
-      const top5 = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      const max = top5[0]?.[1] || 1;
-      const container = document.getElementById('topClients');
-      container.innerHTML = top5.map(([name, total]) => `
-        <div>
-          <div class="flex justify-between text-xs mb-1">
-            <span class="text-slate-300 truncate max-w-xs">${esc(name)}</span>
-            <span class="text-emerald-400 font-mono ml-2">${fmt.format(total)}</span>
-          </div>
-          <div class="w-full bg-slate-700 rounded-full h-1.5">
-            <div class="bg-emerald-500 h-1.5 rounded-full" style="width:${(total/max*100).toFixed(1)}%"></div>
-          </div>
-        </div>`).join('');
-    }
-
-    function renderTable(invoices) {
-      const statusLabel = { bost_Open: 'Abierta', bost_Close: 'Cerrada', bost_Delivered: 'Entregada' };
-      const tbody = document.getElementById('invoicesTable');
-      tbody.innerHTML = invoices.slice(0, 50).map(d => `
-        <tr class="text-slate-300 hover:bg-slate-800/50 transition">
-          <td class="py-2 pr-4 font-mono text-xs">${d.DocNum || '—'}</td>
-          <td class="py-2 pr-4 text-xs max-w-xs truncate">${esc(d.CardName || d.CardCode || '—')}</td>
-          <td class="py-2 pr-4 text-xs">${(d.DocDate || '').substring(0, 10)}</td>
-          <td class="py-2 pr-4 text-xs text-right font-mono">${fmt.format(d.DocTotal || 0)}</td>
-          <td class="py-2 text-xs">
-            <span class="px-2 py-0.5 rounded-full text-xs ${d.DocumentStatus === 'bost_Close' ? 'bg-slate-600 text-slate-300' : 'bg-emerald-900 text-emerald-300'}">
-              ${statusLabel[d.DocumentStatus] || d.DocumentStatus || '—'}
-            </span>
-          </td>
+    function renderTable(inv){
+      const sl={bost_Open:'Abierta',bost_Close:'Cerrada',bost_Delivered:'Entregada'};
+      document.getElementById('invoicesTable').innerHTML=inv.slice(0,MAX_FILAS).map(d=>`
+        <tr style="border-color:var(--border);border-bottom:1px solid var(--border)" class="hover:opacity-75 transition">
+          <td class="py-2 pr-4 font-mono text-xs">${d.DocNum||'—'}</td>
+          <td class="py-2 pr-4 text-xs max-w-xs truncate">${esc(d.CardName||d.CardCode||'—')}</td>
+          <td class="py-2 pr-4 text-xs">${(d.DocDate||'').substring(0,10)}</td>
+          <td class="py-2 pr-4 text-xs text-right font-mono">${fmt.format(d.DocTotal||0)}</td>
+          <td class="py-2 text-xs"><span class="px-2 py-0.5 rounded-full text-xs ${d.DocumentStatus==='bost_Close'?'bg-slate-600 text-slate-300':'bg-emerald-900/50 text-emerald-300'}">${sl[d.DocumentStatus]||d.DocumentStatus||'—'}</span></td>
         </tr>`).join('');
     }
 
-    // ---------------- STOCK (nuevo) ----------------
-    async function loadStock() {
-      showStockLoading();
-      try {
-        const res = await fetch(STOCK_URL);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        stockData = await res.json();
-        renderStock(stockData);
-      } catch (err) {
-        showStockError(err.message);
-      }
+    function exportVentasCSV(){
+      exportCSV(filteredInvoices,'ventas_sap.csv',[
+        {k:'DocNum',l:'N° Doc'},{k:'CardCode',l:'Código Cliente'},{k:'CardName',l:'Cliente'},
+        {k:'DocDate',l:'Fecha',fn:v=>(v||'').substring(0,10)},{k:'DocTotal',l:'Total CLP'},{k:'DocumentStatus',l:'Estado'}
+      ]);
     }
+    function clearVentasFilters(){['filtroDesde','filtroHasta','filtroCliente','metaDiaria'].forEach(id=>document.getElementById(id).value='');applyFilters();}
 
-    function renderStock(data) {
-      const { totales = {}, bodegas = [], articulos = [], lastUpdated } = data;
-
-      document.getElementById('kpiArticulos').textContent = fmtNum.format(totales.articulos || 0);
-      document.getElementById('kpiUnidades').textContent = fmtNum.format(totales.unidades || 0);
-      document.getElementById('kpiBodegas').textContent = totales.bodegas || 0;
-      document.getElementById('lastUpdated').textContent =
-        'Actualizado: ' + (lastUpdated ? new Date(lastUpdated).toLocaleString('es-CL') : '—');
-
-      renderStockChart(bodegas, articulos);
-      renderStockTable();
-      showStockContent();
-    }
-
-    function renderStockChart(bodegas, articulos) {
-      const porBodega = {};
-      articulos.forEach(a => {
-        Object.entries(a.bodegas || {}).forEach(([cod, qty]) => {
-          porBodega[cod] = (porBodega[cod] || 0) + qty;
-        });
-      });
-      const labels = bodegas.map(b => b.codigo + (b.nombre ? ' · ' + b.nombre : ''));
-      const values = bodegas.map(b => porBodega[b.codigo] || 0);
-
-      const ctx = document.getElementById('stockChart').getContext('2d');
-      if (stockChart) stockChart.destroy();
-      stockChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Unidades',
-            data: values,
-            backgroundColor: 'rgba(16,185,129,0.7)',
-            borderColor: 'rgba(16,185,129,1)',
-            borderWidth: 1,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
-            y: { ticks: { color: '#94a3b8', callback: v => fmtNum.format(v) }, grid: { color: '#334155' } }
-          }
-        }
-      });
-    }
-
-    function renderStockTable() {
-      if (!stockData) return;
-      const { bodegas = [], articulos = [] } = stockData;
-      const q = (document.getElementById('stockSearch').value || '').toLowerCase().trim();
-
-      const filtrados = q
-        ? articulos.filter(a =>
-            (a.codigo || '').toLowerCase().includes(q) ||
-            (a.nombre || '').toLowerCase().includes(q))
-        : articulos;
-
-      const ordenados = [...filtrados].sort((a, b) => (b.total || 0) - (a.total || 0));
-      const visibles = ordenados.slice(0, MAX_FILAS);
-
-      document.getElementById('stockCount').textContent =
-        'Mostrando ' + visibles.length + ' de ' + filtrados.length + ' artículos' +
-        (filtrados.length > MAX_FILAS ? ' (usa el buscador para acotar)' : '');
-
-      document.getElementById('stockTableHead').innerHTML = `
-        <tr class="text-slate-400 border-b border-slate-700 text-left">
-          <th class="pb-2 pr-4">Código</th>
-          <th class="pb-2 pr-4">Artículo</th>
-          ${bodegas.map(b => `<th class="pb-2 pr-4 text-right" title="${esc(b.nombre || '')}">${esc(b.codigo)}</th>`).join('')}
-          <th class="pb-2 text-right">Total</th>
-        </tr>`;
-
-      document.getElementById('stockTableBody').innerHTML = visibles.map(a => `
-        <tr class="text-slate-300 hover:bg-slate-800/50 transition">
-          <td class="py-2 pr-4 font-mono text-xs">${esc(a.codigo || '—')}</td>
-          <td class="py-2 pr-4 text-xs max-w-xs truncate">${esc(a.nombre || '—')}</td>
-          ${bodegas.map(b => {
-            const qty = (a.bodegas || {})[b.codigo];
-            return `<td class="py-2 pr-4 text-xs text-right font-mono ${qty ? '' : 'text-slate-600'}">${qty ? fmtNum.format(qty) : '—'}</td>`;
-          }).join('')}
-          <td class="py-2 text-xs text-right font-mono font-bold text-emerald-400">${fmtNum.format(a.total || 0)}</td>
-        </tr>`).join('');
-    }
-
-    document.getElementById('stockSearch').addEventListener('input', renderStockTable);
-
-    // ---------------- Utilidades / estados ----------------
-    function esc(s) {
-      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    function showLoading() {
-      document.getElementById('loadingState').classList.remove('hidden');
-      document.getElementById('errorState').classList.add('hidden');
-      document.getElementById('dashboard').classList.add('hidden');
-    }
-    function showError(msg) {
-      document.getElementById('loadingState').classList.add('hidden');
-      document.getElementById('errorState').classList.remove('hidden');
-      document.getElementById('dashboard').classList.add('hidden');
-      document.getElementById('errorMsg').textContent = msg;
-    }
-    function showDashboard() {
-      document.getElementById('loadingState').classList.add('hidden');
-      document.getElementById('errorState').classList.add('hidden');
-      document.getElementById('dashboard').classList.remove('hidden');
-    }
-    function showStockLoading() {
+    // =========================================================
+    // STOCK
+    // =========================================================
+    async function loadStock(force){
       document.getElementById('stockLoading').classList.remove('hidden');
       document.getElementById('stockError').classList.add('hidden');
       document.getElementById('stockContent').classList.add('hidden');
+      try{
+        const res=await fetch(force?STOCK_URL+'&refresh=1':STOCK_URL);
+        if(!res.ok)throw new Error('HTTP '+res.status);
+        stockData=await res.json();
+        const sel=document.getElementById('filtroBodega');
+        sel.innerHTML='<option value="">Todas las bodegas</option>'+(stockData.bodegas||[]).map(b=>`<option value="${esc(b.codigo)}">${esc(b.nombre||b.codigo)}</option>`).join('');
+        applyStockFilters();
+      }catch(err){
+        document.getElementById('stockLoading').classList.add('hidden');
+        document.getElementById('stockError').classList.remove('hidden');
+        document.getElementById('stockErrorMsg').textContent=err.message;
+      }
     }
-    function showStockError(msg) {
+
+    function applyStockFilters(){
+      if(!stockData)return;
+      const bod=document.getElementById('filtroBodega').value;
+      const q=document.getElementById('stockSearch').value.toLowerCase();
+      const min=parseFloat(document.getElementById('minStock').value)||0;
+      let arts=stockData.articulos||[];
+      if(bod)arts=arts.filter(a=>(a.bodegas||{})[bod]>0);
+      if(q)arts=arts.filter(a=>(a.codigo||'').toLowerCase().includes(q)||(a.nombre||'').toLowerCase().includes(q));
+      const alertas=min>0?arts.filter(a=>a.total<min&&a.total>0):[];
+      const tot=stockData.totales||{};const bodegas=stockData.bodegas||[];
+      document.getElementById('kpiArticulos').textContent=fmtNum.format(tot.articulos||0);
+      document.getElementById('kpiUnidades').textContent=fmtNum.format(tot.unidades||0);
+      document.getElementById('kpiBodegas').textContent=bodegas.length||(tot.bodegas||0);
+      renderStockAlerts(alertas,min);
+      renderStockChart(stockData);
+      renderStockTable(arts,bodegas,min);
+      document.getElementById('stockCount').textContent=`${arts.length} artículos mostrados`;
       document.getElementById('stockLoading').classList.add('hidden');
-      document.getElementById('stockError').classList.remove('hidden');
-      document.getElementById('stockContent').classList.add('hidden');
-      document.getElementById('stockErrorMsg').textContent = msg;
-    }
-    function showStockContent() {
-      document.getElementById('stockLoading').classList.add('hidden');
-      document.getElementById('stockError').classList.add('hidden');
       document.getElementById('stockContent').classList.remove('hidden');
+    }
+
+    function renderStockAlerts(alertas,min){
+      const el=document.getElementById('stockAlerts');
+      if(!min||!alertas.length){el.innerHTML=min?'<p class="t3 text-xs">✅ Ningún artículo por debajo del mínimo.</p>':'<p class="t3 text-xs">Define un stock mínimo en el filtro para ver alertas.</p>';return;}
+      el.innerHTML=alertas.slice(0,50).map(a=>`<div class="flex items-center justify-between text-xs"><span class="t2 truncate max-w-xs">${esc(a.nombre||a.codigo)}</span><span class="badge-low ml-2">${fmtNum.format(a.total)} uds</span></div>`).join('');
+    }
+
+    function renderStockChart(data){
+      const c=cc();const bodegas=data.bodegas||[];const arts=data.articulos||[];
+      const totals=bodegas.map(b=>arts.reduce((s,a)=>s+((a.bodegas||{})[b.codigo]||0),0));
+      if(stockChart)stockChart.destroy();
+      stockChart=new Chart(document.getElementById('stockChart').getContext('2d'),{
+        type:'bar',
+        data:{labels:bodegas.map(b=>b.nombre||b.codigo),datasets:[{label:'Unidades',data:totals,backgroundColor:'rgba(16,185,129,.7)',borderColor:'rgba(16,185,129,1)',borderWidth:1,borderRadius:4}]},
+        options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmtNum.format(v)},grid:{color:c.g}}}}
+      });
+    }
+
+    function renderStockTable(arts,bodegas,min){
+      const cols=bodegas.slice(0,8);
+      document.getElementById('stockTableHead').innerHTML=`<tr style="border-color:var(--border);border-bottom:1px solid var(--border)" class="t2 text-left">
+        <th class="pb-2 pr-3 text-xs">Código</th><th class="pb-2 pr-3 text-xs">Nombre</th>
+        ${cols.map(b=>`<th class="pb-2 pr-3 text-xs text-right">${esc(b.nombre||b.codigo)}</th>`).join('')}
+        <th class="pb-2 text-xs text-right">Total</th></tr>`;
+      document.getElementById('stockTableBody').innerHTML=arts.slice(0,MAX_FILAS).map(a=>{
+        const bajo=min>0&&a.total<min;
+        return`<tr style="border-bottom:1px solid var(--border)" class="${bajo?'alert-card':''} hover:opacity-75 transition">
+          <td class="py-1.5 pr-3 font-mono text-xs">${esc(a.codigo)}</td>
+          <td class="py-1.5 pr-3 text-xs max-w-xs truncate">${esc(a.nombre||'—')}</td>
+          ${cols.map(b=>`<td class="py-1.5 pr-3 text-xs text-right">${fmtNum.format((a.bodegas||{})[b.codigo]||0)}</td>`).join('')}
+          <td class="py-1.5 text-xs text-right font-semibold">${fmtNum.format(a.total)}${bajo?' <span class="badge-low">bajo mín.</span>':''}</td></tr>`;
+      }).join('');
+    }
+
+    function exportStockCSV(){
+      if(!stockData)return;
+      const b=stockData.bodegas||[];const a=stockData.articulos||[];
+      const hdr=['Código','Nombre',...b.map(x=>x.nombre||x.codigo),'Total'];
+      const rows=a.map(x=>[x.codigo,x.nombre,...b.map(y=>(x.bodegas||{})[y.codigo]||0),x.total]);
+      dl('\ufeff'+[hdr,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'),'stock_sap.csv','text/csv');
+    }
+    function clearStockFilters(){['filtroBodega','stockSearch','minStock'].forEach(id=>document.getElementById(id).value='');applyStockFilters();}
+
+    // =========================================================
+    // UTILS
+    // =========================================================
+    function exportCSV(data,name,cols){
+      const rows=[cols.map(c=>c.l),...data.map(d=>cols.map(c=>c.fn?c.fn(d[c.k]):(d[c.k]??'')))];
+      dl('\ufeff'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'),name,'text/csv');
+    }
+    function dl(content,name,mime){
+      const b=new Blob([content],{type:mime+';charset=utf-8;'});
+      const u=URL.createObjectURL(b);
+      Object.assign(document.createElement('a'),{href:u,download:name}).click();
+      URL.revokeObjectURL(u);
+    }
+    function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function showLoading(){['loadingState'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['errorState','dashboard'].forEach(i=>document.getElementById(i).classList.add('hidden'));}
+    function showError(m){['errorState'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['loadingState','dashboard'].forEach(i=>document.getElementById(i).classList.add('hidden'));document.getElementById('errorMsg').textContent=m;}
+    function showDashboard(){['dashboard'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['loadingState','errorState'].forEach(i=>document.getElementById(i).classList.add('hidden'));}
+
+    // PWA
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/sap-dashboard/sw.js').catch(()=>{});
     }
 
     loadData();
