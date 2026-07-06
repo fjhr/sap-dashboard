@@ -38,6 +38,18 @@
     .badge-low{background:#ef4444;color:#fff;font-size:.65rem;padding:1px 5px;border-radius:9999px;display:inline-block;}
     .up{color:#22c55e}.dn{color:#ef4444}.ne{color:var(--text2)}
     canvas{max-height:320px;}
+    .spinner-inline{display:inline-block;width:.85rem;height:.85rem;border:2px solid currentColor;border-top-color:transparent;border-radius:9999px;animation:spin .8s linear infinite;}
+    .accordion-toggle{width:100%;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media print{
+      body{background:#fff!important;color:#000!important;padding:0!important;}
+      .card,.inp{background:#fff!important;color:#000!important;border:1px solid #000!important;box-shadow:none!important;}
+      .print-hide, nav, canvas, .filters-bar, #selectorEmpresaWrap, .header-actions button{display:none!important;}
+      .accordion-content{display:block!important;}
+      table,th,td{border-color:#000!important;color:#000!important;}
+      .t2,.t3,.ne,.up,.dn{color:#000!important;}
+      .page-break{break-before:page;}
+    }
   </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
@@ -48,10 +60,13 @@
         <h1 class="text-2xl md:text-3xl font-bold">📊 Dashboard SAP B1</h1>
         <p id="subtitle" class="t2 text-sm mt-1">Ventas · Últimos 14 días</p>
       </div>
-      <div class="flex items-center gap-2 flex-wrap">
+      <div class="flex items-center gap-2 flex-wrap header-actions">
         <span id="lastUpdated" class="t3 text-xs"></span>
+        <div id="selectorEmpresaWrap" class="hidden">
+          <select id="selectorEmpresa" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="changeCompany()"></select>
+        </div>
         <button onclick="toggleTheme()" id="btnTheme" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Cambiar tema">🌙</button>
-        <button onclick="refreshActive()" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">↻ Actualizar</button>
+        <button onclick="refreshActive()" id="btnRefresh" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">↻ Actualizar</button>
       </div>
     </div>
   </header>
@@ -63,12 +78,17 @@
 
   <!-- ====== TAB VENTAS ====== -->
   <div id="tabVentas">
-    <div class="card rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end">
+    <div class="card rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end filters-bar">
       <div><label class="t3 text-xs block mb-1">Desde</label><input type="date" id="filtroDesde" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="applyFilters()"/></div>
       <div><label class="t3 text-xs block mb-1">Hasta</label><input type="date" id="filtroHasta" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="applyFilters()"/></div>
       <div><label class="t3 text-xs block mb-1">Cliente</label><input type="text" id="filtroCliente" placeholder="Buscar cliente..." class="inp rounded-lg px-3 py-1.5 text-sm w-44" oninput="applyFilters()"/></div>
+      <div><label class="t3 text-xs block mb-1">Vendedor</label>
+        <select id="filtroVendedor" class="inp rounded-lg px-3 py-1.5 text-sm w-48" onchange="applyFilters()">
+          <option value="">Todos los vendedores</option>
+        </select>
+      </div>
       <div><label class="t3 text-xs block mb-1">Meta diaria (CLP)</label><input type="number" id="metaDiaria" placeholder="0" class="inp rounded-lg px-3 py-1.5 text-sm w-36" oninput="applyFilters()"/></div>
-      <button onclick="clearVentasFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition">✕ Limpiar</button>
+      <button onclick="clearVentasFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide">✕ Limpiar</button>
     </div>
 
     <div id="loadingState" class="text-center py-20">
@@ -106,18 +126,18 @@
       </section>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="card rounded-xl p-5">
+        <div class="card rounded-xl p-5 print-hide">
           <h2 class="text-sm font-semibold t2 mb-4">Facturación por Día (CLP)</h2>
           <canvas id="salesChart"></canvas>
         </div>
-        <div class="card rounded-xl p-5">
+        <div class="card rounded-xl p-5 print-hide">
           <h2 class="text-sm font-semibold t2 mb-4">Tendencia 14 días</h2>
           <canvas id="trendChart"></canvas>
         </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="card rounded-xl p-5 flex flex-col items-center">
+        <div class="card rounded-xl p-5 flex flex-col items-center print-hide">
           <h2 class="text-sm font-semibold t2 mb-4 self-start">Actual vs Período Anterior</h2>
           <canvas id="donutChart" style="max-height:260px;max-width:260px;"></canvas>
         </div>
@@ -133,7 +153,10 @@
             <h2 class="text-sm font-semibold t2">Detalle de Facturas</h2>
             <p id="ventasCount" class="t3 text-xs mt-0.5"></p>
           </div>
-          <button onclick="exportVentasCSV()" class="px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+          <div class="flex gap-2 print-hide">
+            <button onclick="printVentas()" class="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition">🖨️ Imprimir</button>
+            <button onclick="exportVentasCSV()" class="px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -145,12 +168,60 @@
           </table>
         </div>
       </div>
+
+      <div class="card rounded-xl p-5">
+        <button onclick="toggleAccordion('orders')" class="accordion-toggle flex items-center justify-between gap-3 text-left">
+          <div>
+            <h2 class="text-sm font-semibold t2">Pedidos</h2>
+            <p id="ordersCount" class="t3 text-xs mt-0.5">0 documentos</p>
+          </div>
+          <span id="ordersChevron" class="text-sm">▼</span>
+        </button>
+        <div id="ordersContent" class="accordion-content hidden mt-4">
+          <div class="flex justify-end mb-3 print-hide">
+            <button onclick="exportOrdersCSV()" class="px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="t2 border-b text-left" style="border-color:var(--border)">
+                <th class="pb-2 pr-4">N° Doc</th><th class="pb-2 pr-4">Cliente</th>
+                <th class="pb-2 pr-4">Fecha</th><th class="pb-2 pr-4 text-right">Total (CLP)</th><th class="pb-2">Estado</th>
+              </tr></thead>
+              <tbody id="ordersTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card rounded-xl p-5">
+        <button onclick="toggleAccordion('deliveries')" class="accordion-toggle flex items-center justify-between gap-3 text-left">
+          <div>
+            <h2 class="text-sm font-semibold t2">Entregas</h2>
+            <p id="deliveriesCount" class="t3 text-xs mt-0.5">0 documentos</p>
+          </div>
+          <span id="deliveriesChevron" class="text-sm">▼</span>
+        </button>
+        <div id="deliveriesContent" class="accordion-content hidden mt-4">
+          <div class="flex justify-end mb-3 print-hide">
+            <button onclick="exportDeliveriesCSV()" class="px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="t2 border-b text-left" style="border-color:var(--border)">
+                <th class="pb-2 pr-4">N° Doc</th><th class="pb-2 pr-4">Cliente</th>
+                <th class="pb-2 pr-4">Fecha</th><th class="pb-2 pr-4 text-right">Total (CLP)</th><th class="pb-2">Estado</th>
+              </tr></thead>
+              <tbody id="deliveriesTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- ====== TAB STOCK ====== -->
   <div id="tabStock" class="hidden">
-    <div class="card rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end">
+    <div class="card rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end filters-bar">
       <div><label class="t3 text-xs block mb-1">Bodega</label>
         <select id="filtroBodega" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="applyStockFilters()">
           <option value="">Todas las bodegas</option>
@@ -158,7 +229,7 @@
       </div>
       <div><label class="t3 text-xs block mb-1">Buscar artículo</label><input type="text" id="stockSearch" placeholder="Código o nombre..." class="inp rounded-lg px-3 py-1.5 text-sm w-52" oninput="applyStockFilters()"/></div>
       <div><label class="t3 text-xs block mb-1">Stock mínimo (alerta)</label><input type="number" id="minStock" placeholder="0" class="inp rounded-lg px-3 py-1.5 text-sm w-32" oninput="applyStockFilters()"/></div>
-      <button onclick="clearStockFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition">✕ Limpiar</button>
+      <button onclick="clearStockFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide">✕ Limpiar</button>
     </div>
 
     <div id="stockLoading" class="text-center py-20">
@@ -179,7 +250,7 @@
       </section>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="card rounded-xl p-5">
+        <div class="card rounded-xl p-5 print-hide">
           <h2 class="text-sm font-semibold t2 mb-4">Unidades por Bodega</h2>
           <canvas id="stockChart"></canvas>
         </div>
@@ -197,7 +268,7 @@
             <h2 class="text-sm font-semibold t2">Stock por Artículo y Bodega</h2>
             <p id="stockCount" class="t3 text-xs mt-0.5"></p>
           </div>
-          <button onclick="exportStockCSV()" class="px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+          <button onclick="exportStockCSV()" class="px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition print-hide">⬇ Exportar CSV</button>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -224,9 +295,11 @@
     const fmtNum = new Intl.NumberFormat('es-CL',{maximumFractionDigits:2});
 
     let salesChart,donutChart,trendChart,stockChart;
-    let tabActual='ventas', rawData=null, stockData=null, filteredInvoices=[];
+    let tabActual='ventas', rawData=null, stockData=null;
+    let filteredInvoices=[], filteredOrders=[], filteredDeliveries=[], filteredStockItems=null;
+    let sellers=[], sellerMap={}, companies=[], loadingCount=0;
+    const accordionState={orders:false,deliveries:false};
 
-    // ---- Tema ----
     function toggleTheme(){
       const l=document.body.classList.toggle('light');
       document.getElementById('btnTheme').textContent=l?'☀️':'🌙';
@@ -239,7 +312,6 @@
       }
     })();
 
-    // ---- Tabs ----
     function switchTab(tab){
       tabActual=tab;const e=tab==='ventas';
       document.getElementById('tabVentas').classList.toggle('hidden',!e);
@@ -251,20 +323,98 @@
     }
     function refreshActive(){tabActual==='ventas'?loadData():loadStock(true);}
 
-    // =========================================================
-    // VENTAS
-    // =========================================================
-    async function loadData(){
-      showLoading();
+    function getSelectedCompany(){return document.getElementById('selectorEmpresa').value||'';}
+    function buildUrl(baseUrl,params){
+      const url=new URL(baseUrl);
+      Object.entries(params||{}).forEach(([k,v])=>{
+        if(v===undefined||v===null||v==='')url.searchParams.delete(k);
+        else url.searchParams.set(k,v);
+      });
+      return url.toString();
+    }
+    function getSalesUrl(){
+      return buildUrl(APPS_SCRIPT_URL,{daysBack:DAYS_BACK,company:getSelectedCompany()});
+    }
+    function getSellersUrl(){
+      return buildUrl(APPS_SCRIPT_URL,{action:'sellers',company:getSelectedCompany()});
+    }
+    function getCompaniesUrl(){
+      return buildUrl(APPS_SCRIPT_URL,{action:'companies'});
+    }
+    function getStockUrl(force){
+      return buildUrl(STOCK_URL,{company:getSelectedCompany(),refresh:force?'1':''});
+    }
+
+    function setLoading(isLoading){
+      loadingCount=Math.max(0,loadingCount+(isLoading?1:-1));
+      const btn=document.getElementById('btnRefresh');
+      const busy=loadingCount>0;
+      btn.disabled=busy;
+      btn.classList.toggle('opacity-70',busy);
+      btn.classList.toggle('cursor-not-allowed',busy);
+      btn.innerHTML=busy?'<span class="spinner-inline mr-1 align-[-2px]"></span> Actualizando...':'↻ Actualizar';
+    }
+    function setLastUpdated(value){
+      document.getElementById('lastUpdated').textContent='Actualizado: '+(value?new Date(value).toLocaleString('es-CL'):'—');
+    }
+
+    async function initCompanies(){
       try{
-        const res=await fetch(`${APPS_SCRIPT_URL}?daysBack=${DAYS_BACK}`);
+        const res=await fetch(getCompaniesUrl());
         if(!res.ok)throw new Error('HTTP '+res.status);
-        rawData=await res.json();
-        setDefaultFilters();
+        const json=await res.json();
+        companies=json.companies||[];
+        const wrap=document.getElementById('selectorEmpresaWrap');
+        const sel=document.getElementById('selectorEmpresa');
+        if(!companies.length){wrap.classList.add('hidden');sel.innerHTML='';return;}
+        sel.innerHTML='<option value="">Empresa por defecto</option>'+companies.map(c=>`<option value="${escAttr(c.id)}">${esc(c.name||c.id)}</option>`).join('');
+        wrap.classList.remove('hidden');
+      }catch(_err){
+        document.getElementById('selectorEmpresaWrap').classList.add('hidden');
+      }
+    }
+    async function changeCompany(){
+      rawData=null;stockData=null;filteredInvoices=[];filteredOrders=[];filteredDeliveries=[];filteredStockItems=null;
+      document.getElementById('invoicesTable').innerHTML='';
+      document.getElementById('ordersTable').innerHTML='';
+      document.getElementById('deliveriesTable').innerHTML='';
+      document.getElementById('stockTableBody').innerHTML='';
+      await loadData(true);
+      if(tabActual==='stock')await loadStock();
+    }
+
+    async function loadData(resetDates){
+      showLoading();
+      setLoading(true);
+      try{
+        const [salesRes,sellersRes]=await Promise.all([
+          fetch(getSalesUrl()),
+          fetch(getSellersUrl()).catch(()=>null)
+        ]);
+        if(!salesRes.ok)throw new Error('HTTP '+salesRes.status);
+        rawData=await salesRes.json();
+        if(resetDates||!document.getElementById('filtroDesde').value||!document.getElementById('filtroHasta').value)setDefaultFilters();
+        await populateSellers(sellersRes);
         applyFilters();
-        document.getElementById('lastUpdated').textContent=
-          'Actualizado: '+(rawData.lastUpdated?new Date(rawData.lastUpdated).toLocaleString('es-CL'):'—');
-      }catch(err){showError(err.message);}
+        setLastUpdated(rawData.lastUpdated);
+      }catch(err){
+        showError(err.message);
+      }finally{
+        setLoading(false);
+      }
+    }
+
+    async function populateSellers(response){
+      sellers=[];sellerMap={};
+      if(response&&response.ok){
+        const json=await response.json();
+        sellers=json.sellers||[];
+      }
+      sellers.forEach(s=>sellerMap[String(s.id)]=s.name||String(s.id));
+      const sel=document.getElementById('filtroVendedor');
+      const current=sel.value;
+      sel.innerHTML='<option value="">Todos los vendedores</option>'+sellers.map(s=>`<option value="${escAttr(s.id)}">${esc(s.name||s.id)}</option>`).join('');
+      if([...sel.options].some(o=>o.value===current))sel.value=current;
     }
 
     function setDefaultFilters(){
@@ -279,6 +429,7 @@
       const desde=document.getElementById('filtroDesde').value;
       const hasta=document.getElementById('filtroHasta').value;
       const cliente=document.getElementById('filtroCliente').value.toLowerCase();
+      const vendedor=document.getElementById('filtroVendedor').value;
       const metaDia=parseFloat(document.getElementById('metaDiaria').value)||0;
 
       const ok=d=>{
@@ -286,34 +437,41 @@
         if(desde&&dia<desde)return false;
         if(hasta&&dia>hasta)return false;
         if(cliente&&!(d.CardName||'').toLowerCase().includes(cliente))return false;
+        if(vendedor&&String(d.SalesPersonCode??'')!==vendedor)return false;
         return true;
       };
       filteredInvoices=(rawData.invoices||[]).filter(ok);
-      const fOrders=(rawData.orders||[]).filter(ok);
-      const fDeliv=(rawData.deliveries||[]).filter(ok);
+      filteredOrders=(rawData.orders||[]).filter(ok);
+      filteredDeliveries=(rawData.deliveries||[]).filter(ok);
       const{current,previous}=splitPeriods(desde,hasta);
-      renderKPIs(filteredInvoices,fOrders,fDeliv,current,previous,metaDia);
-      renderCharts(current,previous,desde,hasta);
+      renderKPIs(filteredInvoices,filteredOrders,filteredDeliveries,current,previous,metaDia);
+      renderCharts(current,previous);
       renderTopClients(filteredInvoices);
-      renderTable(filteredInvoices);
+      renderDocumentTable('invoicesTable',filteredInvoices);
+      renderDocumentTable('ordersTable',filteredOrders);
+      renderDocumentTable('deliveriesTable',filteredDeliveries);
+      document.getElementById('ordersCount').textContent=`${filteredOrders.length} documentos`;
+      document.getElementById('deliveriesCount').textContent=`${filteredDeliveries.length} documentos`;
+      syncAccordion('orders');
+      syncAccordion('deliveries');
       showDashboard();
     }
 
     function splitPeriods(desde,hasta){
       const all=rawData.invoices||[];
-      const today=hasta?new Date(hasta):new Date();
-      const cutCur=desde?new Date(desde):(()=>{const d=new Date(today);d.setDate(today.getDate()-PERIOD+1);return d;})();
-      const cutPrev=new Date(cutCur);cutPrev.setDate(cutCur.getDate()-PERIOD);
+      const end=hasta?new Date(hasta):new Date();
+      const start=desde?new Date(desde):(()=>{const d=new Date(end);d.setDate(end.getDate()-PERIOD+1);return d;})();
+      const prevStart=new Date(start);prevStart.setDate(start.getDate()-PERIOD);
       return{
-        current:all.filter(d=>{const dt=new Date((d.DocDate||'').substring(0,10));return dt>=cutCur&&dt<=today;}),
-        previous:all.filter(d=>{const dt=new Date((d.DocDate||'').substring(0,10));return dt>=cutPrev&&dt<cutCur;})
+        current:all.filter(d=>{const dt=new Date((d.DocDate||'').substring(0,10));return dt>=start&&dt<=end;}),
+        previous:all.filter(d=>{const dt=new Date((d.DocDate||'').substring(0,10));return dt>=prevStart&&dt<start;})
       };
     }
 
     function trend(curr,prev){
-      if(!prev)return{icon:'—',cls:'ne',txt:'— vs período anterior'};
+      if(!prev)return{cls:'ne',txt:'— vs período anterior'};
       const p=((curr-prev)/prev*100);
-      return{icon:p>=0?'▲':'▼',cls:p>=0?'up':'dn',txt:`${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1)}% vs período anterior`};
+      return{cls:p>=0?'up':'dn',txt:`${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1)}% vs período anterior`};
     }
     function setTrend(id,c,p){const t=trend(c,p);const el=document.getElementById(id);el.textContent=t.txt;el.className='text-xs mt-1 '+t.cls;}
 
@@ -342,18 +500,30 @@
     }
     function cc(){return document.body.classList.contains('light')?{g:'#e2e8f0',t:'#475569'}:{g:'#334155',t:'#94a3b8'};}
 
-    function renderCharts(current,previous,desde,hasta){
+    function renderCharts(current,previous){
       const c=cc();
-      const curMap=byDay(current);const curDays=Object.keys(curMap).sort();
+      const curMap=byDay(current),curDays=Object.keys(curMap).sort();
 
       if(salesChart)salesChart.destroy();
       salesChart=new Chart(document.getElementById('salesChart').getContext('2d'),{
         type:'bar',
         data:{labels:curDays,datasets:[{label:'CLP',data:curDays.map(k=>curMap[k]),backgroundColor:'rgba(99,102,241,.7)',borderColor:'rgba(99,102,241,1)',borderWidth:1,borderRadius:4}]},
-        options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmt.format(v)},grid:{color:c.g}}}}
+        options:{
+          responsive:true,
+          onClick:(_event,elements,chart)=>{
+            if(!elements.length)return;
+            const label=chart.data.labels[elements[0].index];
+            if(!label)return;
+            document.getElementById('filtroDesde').value=label;
+            document.getElementById('filtroHasta').value=label;
+            applyFilters();
+          },
+          plugins:{legend:{display:false}},
+          scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmt.format(v)},grid:{color:c.g}}}
+        }
       });
 
-      const all14Map=byDay(rawData.invoices||[]);const all14Days=Object.keys(all14Map).sort();
+      const all14Map=byDay(rawData.invoices||[]),all14Days=Object.keys(all14Map).sort();
       if(trendChart)trendChart.destroy();
       trendChart=new Chart(document.getElementById('trendChart').getContext('2d'),{
         type:'line',
@@ -379,44 +549,70 @@
         <div class="w-full rounded-full h-1.5" style="background:var(--border)"><div class="bg-emerald-500 h-1.5 rounded-full" style="width:${(tot/max*100).toFixed(1)}%"></div></div></div>`).join('');
     }
 
-    function renderTable(inv){
-      const sl={bost_Open:'Abierta',bost_Close:'Cerrada',bost_Delivered:'Entregada'};
-      document.getElementById('invoicesTable').innerHTML=inv.slice(0,MAX_FILAS).map(d=>`
+    function getStatusLabel(status){
+      return({bost_Open:'Abierta',bost_Close:'Cerrada',bost_Delivered:'Entregada'})[status]||status||'—';
+    }
+    function getSellerName(code){
+      return sellerMap[String(code)]||String(code??'');
+    }
+    function renderDocumentTable(targetId,docs){
+      document.getElementById(targetId).innerHTML=docs.slice(0,MAX_FILAS).map(d=>`
         <tr style="border-color:var(--border);border-bottom:1px solid var(--border)" class="hover:opacity-75 transition">
           <td class="py-2 pr-4 font-mono text-xs">${d.DocNum||'—'}</td>
           <td class="py-2 pr-4 text-xs max-w-xs truncate">${esc(d.CardName||d.CardCode||'—')}</td>
           <td class="py-2 pr-4 text-xs">${(d.DocDate||'').substring(0,10)}</td>
           <td class="py-2 pr-4 text-xs text-right font-mono">${fmt.format(d.DocTotal||0)}</td>
-          <td class="py-2 text-xs"><span class="px-2 py-0.5 rounded-full text-xs ${d.DocumentStatus==='bost_Close'?'bg-slate-600 text-slate-300':'bg-emerald-900/50 text-emerald-300'}">${sl[d.DocumentStatus]||d.DocumentStatus||'—'}</span></td>
+          <td class="py-2 text-xs"><span class="px-2 py-0.5 rounded-full text-xs ${d.DocumentStatus==='bost_Close'?'bg-slate-600 text-slate-300':'bg-emerald-900/50 text-emerald-300'}">${getStatusLabel(d.DocumentStatus)}</span></td>
         </tr>`).join('');
     }
+    function toggleAccordion(type){
+      accordionState[type]=!accordionState[type];
+      syncAccordion(type);
+    }
+    function syncAccordion(type){
+      document.getElementById(type+'Content').classList.toggle('hidden',!accordionState[type]);
+      document.getElementById(type+'Chevron').textContent=accordionState[type]?'▲':'▼';
+    }
+    function printVentas(){
+      accordionState.orders=true;accordionState.deliveries=true;
+      syncAccordion('orders');syncAccordion('deliveries');
+      window.print();
+    }
 
-    function exportVentasCSV(){
-      exportCSV(filteredInvoices,'ventas_sap.csv',[
+    function exportVentasCSV(){exportDocumentsCSV(filteredInvoices,'ventas_sap.csv');}
+    function exportOrdersCSV(){exportDocumentsCSV(filteredOrders,'pedidos_sap.csv');}
+    function exportDeliveriesCSV(){exportDocumentsCSV(filteredDeliveries,'entregas_sap.csv');}
+    function exportDocumentsCSV(data,name){
+      exportCSV(data,name,[
         {k:'DocNum',l:'N° Doc'},{k:'CardCode',l:'Código Cliente'},{k:'CardName',l:'Cliente'},
-        {k:'DocDate',l:'Fecha',fn:v=>(v||'').substring(0,10)},{k:'DocTotal',l:'Total CLP'},{k:'DocumentStatus',l:'Estado'}
+        {k:'DocDate',l:'Fecha',fn:v=>(v||'').substring(0,10)},{k:'DocTotal',l:'Total CLP'},
+        {k:'DocumentStatus',l:'Estado',fn:v=>getStatusLabel(v)},
+        {k:'SalesPersonCode',l:'Vendedor',fn:v=>getSellerName(v)}
       ]);
     }
-    function clearVentasFilters(){['filtroDesde','filtroHasta','filtroCliente','metaDiaria'].forEach(id=>document.getElementById(id).value='');applyFilters();}
+    function clearVentasFilters(){['filtroDesde','filtroHasta','filtroCliente','filtroVendedor','metaDiaria'].forEach(id=>document.getElementById(id).value='');applyFilters();}
 
-    // =========================================================
-    // STOCK
-    // =========================================================
     async function loadStock(force){
       document.getElementById('stockLoading').classList.remove('hidden');
       document.getElementById('stockError').classList.add('hidden');
       document.getElementById('stockContent').classList.add('hidden');
+      setLoading(true);
       try{
-        const res=await fetch(force?STOCK_URL+'&refresh=1':STOCK_URL);
+        const res=await fetch(getStockUrl(force));
         if(!res.ok)throw new Error('HTTP '+res.status);
         stockData=await res.json();
         const sel=document.getElementById('filtroBodega');
-        sel.innerHTML='<option value="">Todas las bodegas</option>'+(stockData.bodegas||[]).map(b=>`<option value="${esc(b.codigo)}">${esc(b.nombre||b.codigo)}</option>`).join('');
+        const current=sel.value;
+        sel.innerHTML='<option value="">Todas las bodegas</option>'+(stockData.bodegas||[]).map(b=>`<option value="${escAttr(b.codigo)}">${esc(b.nombre||b.codigo)}</option>`).join('');
+        if([...sel.options].some(o=>o.value===current))sel.value=current;
         applyStockFilters();
+        if(tabActual==='stock')setLastUpdated(stockData.lastUpdated);
       }catch(err){
         document.getElementById('stockLoading').classList.add('hidden');
         document.getElementById('stockError').classList.remove('hidden');
         document.getElementById('stockErrorMsg').textContent=err.message;
+      }finally{
+        setLoading(false);
       }
     }
 
@@ -428,8 +624,9 @@
       let arts=stockData.articulos||[];
       if(bod)arts=arts.filter(a=>(a.bodegas||{})[bod]>0);
       if(q)arts=arts.filter(a=>(a.codigo||'').toLowerCase().includes(q)||(a.nombre||'').toLowerCase().includes(q));
+      filteredStockItems=arts;
       const alertas=min>0?arts.filter(a=>a.total<min&&a.total>0):[];
-      const tot=stockData.totales||{};const bodegas=stockData.bodegas||[];
+      const tot=stockData.totales||{},bodegas=stockData.bodegas||[];
       document.getElementById('kpiArticulos').textContent=fmtNum.format(tot.articulos||0);
       document.getElementById('kpiUnidades').textContent=fmtNum.format(tot.unidades||0);
       document.getElementById('kpiBodegas').textContent=bodegas.length||(tot.bodegas||0);
@@ -448,7 +645,7 @@
     }
 
     function renderStockChart(data){
-      const c=cc();const bodegas=data.bodegas||[];const arts=data.articulos||[];
+      const c=cc(),bodegas=data.bodegas||[],arts=data.articulos||[];
       const totals=bodegas.map(b=>arts.reduce((s,a)=>s+((a.bodegas||{})[b.codigo]||0),0));
       if(stockChart)stockChart.destroy();
       stockChart=new Chart(document.getElementById('stockChart').getContext('2d'),{
@@ -476,18 +673,15 @@
 
     function exportStockCSV(){
       if(!stockData)return;
-      const b=stockData.bodegas||[];const a=stockData.articulos||[];
+      const b=stockData.bodegas||[],a=filteredStockItems!==null?filteredStockItems:(stockData.articulos||[]);
       const hdr=['Código','Nombre',...b.map(x=>x.nombre||x.codigo),'Total'];
       const rows=a.map(x=>[x.codigo,x.nombre,...b.map(y=>(x.bodegas||{})[y.codigo]||0),x.total]);
       dl('\ufeff'+[hdr,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'),'stock_sap.csv','text/csv');
     }
     function clearStockFilters(){['filtroBodega','stockSearch','minStock'].forEach(id=>document.getElementById(id).value='');applyStockFilters();}
 
-    // =========================================================
-    // UTILS
-    // =========================================================
     function exportCSV(data,name,cols){
-      const rows=[cols.map(c=>c.l),...data.map(d=>cols.map(c=>c.fn?c.fn(d[c.k]):(d[c.k]??'')))];
+      const rows=[cols.map(c=>c.l),...data.map(d=>cols.map(c=>c.fn?c.fn(d[c.k],d):(d[c.k]??'')))];
       dl('\ufeff'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n'),name,'text/csv');
     }
     function dl(content,name,mime){
@@ -497,16 +691,19 @@
       URL.revokeObjectURL(u);
     }
     function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function escAttr(s){return esc(s).replace(/"/g,'&quot;');}
     function showLoading(){['loadingState'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['errorState','dashboard'].forEach(i=>document.getElementById(i).classList.add('hidden'));}
     function showError(m){['errorState'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['loadingState','dashboard'].forEach(i=>document.getElementById(i).classList.add('hidden'));document.getElementById('errorMsg').textContent=m;}
     function showDashboard(){['dashboard'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['loadingState','errorState'].forEach(i=>document.getElementById(i).classList.add('hidden'));}
 
-    // PWA
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('/sap-dashboard/sw.js').catch(()=>{});
     }
 
-    loadData();
+    (async function init(){
+      await initCompanies();
+      await loadData(true);
+    })();
   </script>
 </body>
 </html>

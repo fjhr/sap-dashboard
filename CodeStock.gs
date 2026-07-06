@@ -19,6 +19,7 @@ var CACHE_TTL = 21600; // 6 horas en segundos
 
 // --- Config Stock ---
 var STOCK_CACHE_KEY = 'sap_stock_data';
+var SELLERS_CACHE_KEY = 'sap_sellers_data';
 var STOCK_SOLO_CON_STOCK = true; // true = solo articulos con stock > 0
 var STOCK_MAX_PAGINAS = 100;     // tope de seguridad (100 pag x 100 items = 10.000)
 
@@ -26,70 +27,58 @@ function doGet(e) {
   var params = (e && e.parameter) ? e.parameter : {};
   var action = params.action;
 
-  if (action === 'stock') return serveStock_(e);
+  if (action === 'companies') return jsonResponse_({ companies: getPublicCompanies_() });
 
-  // Soporte para ?daysBack=N (permite pedir más historial para comparativas)
+  var companyConfig = getCompanyConfig_(params);
+
+  if (action === 'sellers') return serveSellers_(companyConfig);
+  if (action === 'stock') return serveStock_(e, companyConfig);
+
   var daysBack = params.daysBack ? parseInt(params.daysBack, 10) : null;
-  var cacheKey = daysBack ? CACHE_KEY + '_' + daysBack : CACHE_KEY;
+  var cacheKey = buildCacheKey_(CACHE_KEY, companyConfig.id, daysBack);
 
   var cache = CacheService.getScriptCache();
   var cached = cache.get(cacheKey);
-  var data = cached ? JSON.parse(cached) : fetchAndCache(daysBack, cacheKey);
+  var data = cached ? JSON.parse(cached) : fetchAndCache(daysBack, cacheKey, companyConfig.db);
 
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse_(data);
 }
 
 // ============================================================
 // VENTAS
 // ============================================================
 
-function fetchAndCache(daysBackOverride, cacheKey) {
-  var data = fetchSAPData(daysBackOverride);
+function fetchAndCache(daysBackOverride, cacheKey, companyDb) {
+  var data = fetchSAPData(daysBackOverride, companyDb);
   var key = cacheKey || CACHE_KEY;
   CacheService.getScriptCache().put(key, JSON.stringify(data), CACHE_TTL);
   return data;
 }
 
-function fetchSAPData(daysBackOverride) {
+function fetchSAPData(daysBackOverride, companyDb) {
   var props = PropertiesService.getScriptProperties();
-  var baseUrl   = props.getProperty('SAP_BASE_URL');
-  var companyDb = props.getProperty('SAP_COMPANY_DB');
-  var user      = props.getProperty('SAP_USER');
-  var password  = props.getProperty('SAP_PASSWORD');
-  var language  = parseInt(props.getProperty('SAP_LANGUAGE') || '25', 10);
-
-  var loginResp = UrlFetchApp.fetch(baseUrl + '/Login', {
-    method: 'post',
-    contentType: 'application/json',
-    payload: JSON.stringify({ CompanyDB: companyDb, UserName: user, Password: password, Language: language }),
-    muteHttpExceptions: true
-  });
-
-  if (loginResp.getResponseCode() !== 200) {
-    throw new Error('SAP Login failed: ' + loginResp.getContentText());
-  }
-
-  var sessionId = JSON.parse(loginResp.getContentText()).SessionId;
-  var reqHeaders = { 'Cookie': 'B1SESSION=' + sessionId, 'Prefer': 'odata.maxpagesize=100' };
+  var session = openSAPSession_(companyDb);
 
   var daysBack = daysBackOverride || parseInt(props.getProperty('SAP_DAYS_BACK') || '5', 10);
   var cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - daysBack);
   var dateFilter = Utilities.formatDate(cutoff, Session.getScriptTimeZone(), "yyyy-MM-dd");
 
-  var fields = 'DocNum,CardCode,CardName,DocDate,DocTotal,DocumentStatus';
-
-  var invoices   = fetchAll(baseUrl, '/Invoices',      dateFilter, fields, reqHeaders);
-  var orders     = fetchAll(baseUrl, '/Orders',        dateFilter, fields, reqHeaders);
-  var deliveries = fetchAll(baseUrl, '/DeliveryNotes', dateFilter, fields, reqHeaders);
+  var fields = 'DocNum,CardCode,CardName,DocDate,DocTotal,DocumentStatus,SalesPersonCode';
+  var invoices = [];
+  var orders = [];
+  var deliveries = [];
 
   try {
-    UrlFetchApp.fetch(baseUrl + '/Logout', { method: 'post', headers: reqHeaders, muteHttpExceptions: true });
-  } catch(e) {}
+   invoices   = fetchAll(session.baseUrl, '/Invoices',      dateFilter, fields, session.headers);
+   orders     = fetchAll(session.baseUrl, '/Orders',        dateFilter, fields, session.headers);
+   deliveries = fetchAll(session.baseUrl, '/DeliveryNotes', dateFilter, fields, session.headers);
+  } finally {
+   closeSAPSession_(session);
+  }
 
   return {
-    lastUpdated: new Date().toISOString(),
+   lastUpdated: new Date().toISOString(),
     currency: 'CLP',
     dateFrom: dateFilter,
     invoices: invoices,
@@ -120,53 +109,66 @@ function fetchAll(baseUrl, endpoint, dateFilter, fields, headers) {
   return json.value || [];
 }
 
+function serveSellers_(companyConfig) {
+  var cache = CacheService.getScriptCache();
+  var cacheKey = buildCacheKey_(SELLERS_CACHE_KEY, companyConfig.id);
+  var cached = cache.get(cacheKey);
+  var data = cached ? JSON.parse(cached) : fetchSellersData_(companyConfig.db);
+  if (!cached) cache.put(cacheKey, JSON.stringify(data), CACHE_TTL);
+  return jsonResponse_({ sellers: data });
+}
+
+function fetchSellersData_(companyDb) {
+  var session = openSAPSession_(companyDb);
+  try {
+    var resp = UrlFetchApp.fetch(session.baseUrl + '/SalesPersons?$select=SalesEmployeeCode,SalesEmployeeName', {
+      method: 'get',
+      headers: session.headers,
+      muteHttpExceptions: true
+    });
+    if (resp.getResponseCode() !== 200) {
+      Logger.log('Error fetching SalesPersons: ' + resp.getContentText());
+      return [];
+    }
+    var json = JSON.parse(resp.getContentText());
+    return (json.value || []).map(function(item) {
+      return {
+        id: String(item.SalesEmployeeCode),
+        code: item.SalesEmployeeCode,
+        name: item.SalesEmployeeName || ('Vendedor ' + item.SalesEmployeeCode)
+      };
+    });
+  } finally {
+    closeSAPSession_(session);
+  }
+}
+
 // ============================================================
 // STOCK POR BODEGA (nuevo)
 // ============================================================
 
-function serveStock_(e) {
+function serveStock_(e, companyConfig) {
   var forzar = e && e.parameter && e.parameter.refresh === '1';
-  var data = forzar ? null : leerStockCache_();
+  var cacheKey = buildCacheKey_(STOCK_CACHE_KEY, companyConfig.id);
+  var data = forzar ? null : leerStockCache_(cacheKey);
   if (!data) {
-    data = fetchStockData();
-    guardarStockCache_(data);
+    data = fetchStockData(companyConfig.db);
+    guardarStockCache_(data, cacheKey);
   }
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse_(data);
 }
 
-function fetchStockData() {
-  var props = PropertiesService.getScriptProperties();
-  var baseUrl   = props.getProperty('SAP_BASE_URL');
-  var companyDb = props.getProperty('SAP_COMPANY_DB');
-  var user      = props.getProperty('SAP_USER');
-  var password  = props.getProperty('SAP_PASSWORD');
-  var language  = parseInt(props.getProperty('SAP_LANGUAGE') || '25', 10);
-
-  var loginResp = UrlFetchApp.fetch(baseUrl + '/Login', {
-    method: 'post',
-    contentType: 'application/json',
-    payload: JSON.stringify({ CompanyDB: companyDb, UserName: user, Password: password, Language: language }),
-    muteHttpExceptions: true
-  });
-
-  if (loginResp.getResponseCode() !== 200) {
-    throw new Error('SAP Login failed (stock): ' + loginResp.getContentText());
-  }
-
-  var sessionId = JSON.parse(loginResp.getContentText()).SessionId;
-  var reqHeaders = { 'Cookie': 'B1SESSION=' + sessionId, 'Prefer': 'odata.maxpagesize=100' };
+function fetchStockData(companyDb) {
+  var session = openSAPSession_(companyDb);
 
   var bodegas = [];
   var articulos = [];
 
   try {
-    bodegas = fetchBodegas_(baseUrl, reqHeaders);
-    articulos = fetchArticulosStock_(baseUrl, reqHeaders);
+    bodegas = fetchBodegas_(session.baseUrl, session.headers);
+    articulos = fetchArticulosStock_(session.baseUrl, session.headers);
   } finally {
-    try {
-      UrlFetchApp.fetch(baseUrl + '/Logout', { method: 'post', headers: reqHeaders, muteHttpExceptions: true });
-    } catch(e) {}
+    closeSAPSession_(session);
   }
 
   var unidades = 0;
@@ -248,25 +250,27 @@ function fetchArticulosStock_(baseUrl, headers) {
 
 // --- Cache de stock en trozos (limite de 100KB por clave) ---
 
-function guardarStockCache_(data) {
+function guardarStockCache_(data, cacheBaseKey) {
   var cache = CacheService.getScriptCache();
   var texto = JSON.stringify(data);
   var tam = 80000;
   var partes = Math.ceil(texto.length / tam);
+  var key = cacheBaseKey || STOCK_CACHE_KEY;
   for (var i = 0; i < partes; i++) {
-    cache.put(STOCK_CACHE_KEY + '_' + i, texto.substr(i * tam, tam), CACHE_TTL);
+    cache.put(key + '_' + i, texto.substr(i * tam, tam), CACHE_TTL);
   }
-  cache.put(STOCK_CACHE_KEY + '_META', String(partes), CACHE_TTL);
+  cache.put(key + '_META', String(partes), CACHE_TTL);
 }
 
-function leerStockCache_() {
+function leerStockCache_(cacheBaseKey) {
   var cache = CacheService.getScriptCache();
-  var meta = cache.get(STOCK_CACHE_KEY + '_META');
+  var key = cacheBaseKey || STOCK_CACHE_KEY;
+  var meta = cache.get(key + '_META');
   if (!meta) return null;
   var partes = parseInt(meta, 10);
   var texto = '';
   for (var i = 0; i < partes; i++) {
-    var parte = cache.get(STOCK_CACHE_KEY + '_' + i);
+    var parte = cache.get(key + '_' + i);
     if (parte === null) return null;
     texto += parte;
   }
@@ -275,7 +279,7 @@ function leerStockCache_() {
 
 /** Prueba manual del stock: ejecutar desde el editor y revisar el registro */
 function testStock() {
-  var data = fetchStockData();
+  var data = fetchStockData(getCompanyDb_({}));
   Logger.log('Bodegas: ' + data.totales.bodegas);
   Logger.log('Articulos con stock: ' + data.totales.articulos);
   Logger.log('Unidades totales: ' + data.totales.unidades);
@@ -299,15 +303,118 @@ function setupTrigger() {
 /** Invocado por el trigger para actualizar ambos cachés */
 function refreshCache() {
   try {
-    fetchAndCache();
+    fetchAndCache(null, buildCacheKey_(CACHE_KEY, 'DEFAULT'), getCompanyDb_({}));
     Logger.log('Cache ventas actualizado: ' + new Date().toISOString());
   } catch(e) {
     Logger.log('Error en refreshCache (ventas): ' + e.message);
   }
   try {
-    guardarStockCache_(fetchStockData());
+    guardarStockCache_(fetchStockData(getCompanyDb_({})), buildCacheKey_(STOCK_CACHE_KEY, 'DEFAULT'));
     Logger.log('Cache stock actualizado: ' + new Date().toISOString());
   } catch(e) {
     Logger.log('Error en refreshCache (stock): ' + e.message);
   }
+}
+
+function jsonResponse_(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function buildCacheKey_(baseKey, companyId, suffix) {
+  var key = baseKey + '_' + sanitizeCachePart_(companyId || 'DEFAULT');
+  return suffix ? key + '_' + suffix : key;
+}
+
+function sanitizeCachePart_(value) {
+  return String(value || 'DEFAULT').replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+function openSAPSession_(companyDb) {
+  var props = PropertiesService.getScriptProperties();
+  var baseUrl  = props.getProperty('SAP_BASE_URL');
+  var user     = props.getProperty('SAP_USER');
+  var password = props.getProperty('SAP_PASSWORD');
+  var language = parseInt(props.getProperty('SAP_LANGUAGE') || '25', 10);
+  var loginResp = UrlFetchApp.fetch(baseUrl + '/Login', {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ CompanyDB: companyDb, UserName: user, Password: password, Language: language }),
+    muteHttpExceptions: true
+  });
+
+  if (loginResp.getResponseCode() !== 200) {
+    throw new Error('SAP Login failed: ' + loginResp.getContentText());
+  }
+
+  var sessionId = JSON.parse(loginResp.getContentText()).SessionId;
+  return {
+    baseUrl: baseUrl,
+    headers: { 'Cookie': 'B1SESSION=' + sessionId, 'Prefer': 'odata.maxpagesize=100' }
+  };
+}
+
+function closeSAPSession_(session) {
+  if (!session || !session.baseUrl || !session.headers) return;
+  try {
+    UrlFetchApp.fetch(session.baseUrl + '/Logout', {
+      method: 'post',
+      headers: session.headers,
+      muteHttpExceptions: true
+    });
+  } catch (e) {}
+}
+
+function getCompanyDb_(params) {
+  var props = PropertiesService.getScriptProperties();
+  var companyId = params && params.company;
+  if (!companyId) return props.getProperty('SAP_COMPANY_DB');
+
+  var companies = getCompanies_();
+  for (var i = 0; i < companies.length; i++) {
+    if (companies[i].id === companyId) return companies[i].db;
+  }
+  throw new Error('Empresa no configurada: ' + companyId);
+}
+
+function getCompanyConfig_(params) {
+  var companyId = params && params.company;
+  if (!companyId) {
+    return { id: 'DEFAULT', db: getCompanyDb_({}), name: 'Empresa por defecto' };
+  }
+
+  var companies = getCompanies_();
+  for (var i = 0; i < companies.length; i++) {
+    if (companies[i].id === companyId) return companies[i];
+  }
+  throw new Error('Empresa no configurada: ' + companyId);
+}
+
+function getCompanies_() {
+  var props = PropertiesService.getScriptProperties();
+  var raw = props.getProperty('SAP_COMPANIES');
+  if (!raw) return [];
+
+  try {
+    var parsed = JSON.parse(raw);
+    if (!(parsed instanceof Array)) return [];
+    return parsed
+      .filter(function(item) { return item && item.id && item.db; })
+      .map(function(item) {
+        return {
+          id: String(item.id),
+          name: item.name || String(item.id),
+          db: item.db
+        };
+      });
+  } catch (e) {
+    Logger.log('SAP_COMPANIES inválido: ' + e.message);
+    return [];
+  }
+}
+
+function getPublicCompanies_() {
+  return getCompanies_().map(function(item) {
+    return { id: item.id, name: item.name };
+  });
 }
