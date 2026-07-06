@@ -52,13 +52,15 @@ function fetchSAPData() {
     throw new Error('SAP Login failed: ' + loginResp.getContentText());
   }
 
-  var cookies = loginResp.getAllHeaders()['Set-Cookie'];
-  var sessionCookie = Array.isArray(cookies) ? cookies.join('; ') : cookies;
-  var reqHeaders = { 'Cookie': sessionCookie, 'Prefer': 'odata.maxpagesize=100' };
+  // Usar SessionId del body (más confiable que parsear Set-Cookie)
+  var sessionId = JSON.parse(loginResp.getContentText()).SessionId;
+  var reqHeaders = { 'Cookie': 'B1SESSION=' + sessionId, 'Prefer': 'odata.maxpagesize=100' };
 
   // --- Fecha límite: hace 5 días ---
+  // SAP_DAYS_BACK permite sobrescribir el rango (útil en DBs de prueba con datos históricos)
+  var daysBack = parseInt(props.getProperty('SAP_DAYS_BACK') || '5', 10);
   var cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 5);
+  cutoff.setDate(cutoff.getDate() - daysBack);
   var dateFilter = Utilities.formatDate(cutoff, Session.getScriptTimeZone(), "yyyy-MM-dd");
 
   var fields = 'DocNum,CardCode,CardName,DocDate,DocTotal,DocumentStatus';
