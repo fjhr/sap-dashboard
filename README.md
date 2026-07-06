@@ -1,65 +1,79 @@
 # 📊 SAP B1 Dashboard
 
-Dashboard web de **Ventas** y **Stock** para SAP Business One. Publicado en GitHub Pages, alimentado por Google Apps Script conectado a SAP Service Layer en tiempo real. Instalable como aplicación (PWA).
+Dashboard web de **Ventas** y **Stock** para SAP Business One. Publicado en GitHub Pages, alimentado por Google Apps Script conectado a SAP Service Layer. Instalable como PWA, soporte multi-empresa.
 
 🌐 **Live:** [fjhr.github.io/sap-dashboard](https://fjhr.github.io/sap-dashboard)
 
 ---
 
-## ✨ Características
+## ✨ Características completas
 
 ### 💰 Pestaña Ventas
+
 | Característica | Detalle |
 |----------------|---------|
-| **KPIs con comparativa** | Total facturado, N° Facturas, Pedidos, Entregas — cada uno con `▲▼ %` vs período anterior |
-| **Alerta de meta diaria** | KPI se vuelve rojo si el promedio diario cae bajo el umbral configurado |
-| **Gráfica de barras** | Facturación CLP por día del período seleccionado |
-| **Gráfica de tendencia** | Línea de 14 días mostrando evolución de facturación |
-| **Donut comparativo** | Período actual vs período anterior en proporción |
-| **Top 5 clientes** | Ranking por monto facturado con barra de progreso |
-| **Filtros interactivos** | Rango de fechas, búsqueda por cliente, meta diaria — todo en tiempo real |
-| **Tabla de facturas** | Detalle con N° doc, cliente, fecha, monto y estado |
-| **Exportar CSV** | Descarga inmediata con todos los datos filtrados (compatible Excel) |
+| KPIs con comparativa | Total facturado, Facturas, Pedidos, Entregas con `▲▼ %` vs período anterior |
+| Alerta meta diaria | KPI rojo si el promedio diario cae bajo el umbral configurado |
+| Filtro de fecha | Rango desde/hasta — filtra todas las vistas en tiempo real |
+| Filtro por cliente | Búsqueda por nombre en tiempo real |
+| Filtro por vendedor | Dropdown poblado desde SAP (`SalesPersonCode`) |
+| Drill-down en gráfica | Click en una barra → filtra la tabla al día seleccionado |
+| Gráfica de barras | Facturación CLP por día del período |
+| Gráfica de tendencia | Línea de 14 días con evolución de facturación |
+| Donut comparativo | Período actual vs período anterior en proporción |
+| Top 5 clientes | Ranking por monto con barra de progreso |
+| Tabla de Facturas | DocNum, Cliente, Fecha, Total, Estado + Exportar CSV |
+| Acordeón Pedidos | Colapsable ▼/▲ con tabla completa + Exportar CSV |
+| Acordeón Entregas | Colapsable ▼/▲ con tabla completa + Exportar CSV |
+| Imprimir / PDF | `@media print` limpio: solo tablas, sin UI; botón 🖨️ |
 
 ### 📦 Pestaña Stock
+
 | Característica | Detalle |
 |----------------|---------|
-| **KPIs de inventario** | Artículos con stock, Unidades totales, N° Bodegas |
-| **Gráfica de barras** | Unidades por bodega |
-| **Panel de alertas** | Lista de artículos bajo el stock mínimo configurado |
-| **Filtros interactivos** | Bodega específica, búsqueda por código/nombre, umbral de stock mínimo |
-| **Tabla dinámica** | Stock por artículo desglosado por bodega (hasta 8 bodegas visibles) |
-| **Filas en rojo** | Artículos por debajo del mínimo se destacan visualmente con badge |
-| **Exportar CSV** | Exporta toda la tabla (todas las bodegas) como CSV |
+| KPIs de inventario | Artículos, Unidades totales, Bodegas activas |
+| Filtro por bodega | Dropdown con todas las bodegas |
+| Búsqueda de artículo | Por código o nombre en tiempo real |
+| Alerta stock mínimo | Umbral configurable; filas en rojo + badge; panel de alertas |
+| Gráfica por bodega | Barras de unidades por bodega |
+| Tabla dinámica | Stock por artículo y bodega (hasta 8 bodegas visibles) |
+| Exportar CSV | Exporta todas las bodegas y artículos filtrados |
 
 ### 🎨 Generales
-- **Dark / Light mode** — toggle con persistencia en `localStorage`
-- **PWA** — instalable como app en móvil y escritorio, funciona offline con últimos datos
-- **Actualización automática** — botón ↻ y trigger cada 6h en Apps Script
+
+| Característica | Detalle |
+|----------------|---------|
+| Dark / Light mode | Toggle 🌙/☀️ con persistencia en `localStorage` |
+| Multi-empresa | Dropdown en header; configura `SAP_COMPANIES` en Script Properties |
+| Refresh visual | Botón ↻ con spinner + "Actualizando..." bloqueado durante carga |
+| PWA | Instalable en móvil/escritorio; funciona offline con últimos datos |
 
 ---
 
 ## 🏗️ Arquitectura
 
 ```
-SAP Business One (Service Layer REST/OData)
+SAP Business One (Service Layer REST / OData v1)
           │
-          │  HTTPS — cada 6 horas (trigger automático)
-          │  o bajo demanda (?refresh=1)
+          │  HTTPS — trigger automático cada 6h + bajo demanda
           ▼
- Google Apps Script (Web App)
-  ├─ GET /exec                    → ventas (últimos N días, caché 6h)
-  ├─ GET /exec?daysBack=14        → ventas con más historial (comparativa)
-  ├─ GET /exec?action=stock       → stock por artículo y bodega (caché 6h)
-  └─ GET /exec?action=stock&refresh=1 → fuerza lectura fresca desde SAP
+ Google Apps Script — CodeStock.gs (24 funciones, 420 líneas)
+  ├─ GET /exec                          → ventas (caché 6h)
+  ├─ GET /exec?daysBack=14              → ventas con más historial
+  ├─ GET /exec?company=ID              → ventas de empresa específica
+  ├─ GET /exec?action=sellers           → lista de vendedores SAP
+  ├─ GET /exec?action=companies         → lista de empresas configuradas
+  ├─ GET /exec?action=stock             → stock por artículo/bodega (caché 6h)
+  └─ GET /exec?action=stock&refresh=1  → stock forzando lectura fresca
           │
-          │  fetch() al cargar / al cambiar filtros
+          │  fetch() al cargar / al cambiar filtros/empresa
           ▼
-  GitHub Pages (index.html)        ← estático, gratuito
-  ├─ Tab Ventas  (Chart.js + filtros + CSV export)
-  ├─ Tab Stock   (Chart.js + filtros + alertas + CSV export)
-  ├─ manifest.json                 ← PWA
-  └─ sw.js                         ← Service Worker (cache-first)
+  GitHub Pages — index.html (709 líneas, 51 funciones JS)
+  ├─ Header: empresa selector + dark/light + refresh
+  ├─ Tab Ventas: filtros + KPIs + charts + drill-down + tablas + acordeón + print
+  ├─ Tab Stock: filtros + KPIs + chart + tabla + alertas
+  ├─ manifest.json  ← PWA
+  └─ sw.js          ← Service Worker (cache-first static, network-first API)
 ```
 
 ---
@@ -68,111 +82,126 @@ SAP Business One (Service Layer REST/OData)
 
 ```
 sap-dashboard/
-├── index.html       # Dashboard web (Tailwind CSS + Chart.js)
-├── CodeStock.gs     # Apps Script: ventas + stock ✅ (usar este)
-├── Code.gs          # Apps Script: solo ventas (versión base, deprecado)
+├── index.html       # Dashboard web — Tailwind CSS CDN + Chart.js 4.4.3
+├── CodeStock.gs     # Apps Script: ventas + stock + sellers + companies ✅
+├── Code.gs          # Apps Script: versión inicial (deprecada)
 ├── manifest.json    # PWA manifest
 ├── sw.js            # Service Worker
 ├── README.md        # Este archivo
-└── SETUP.md         # Guía de configuración paso a paso
+└── SETUP.md         # Guía paso a paso de configuración
 ```
 
-> ⚠️ **Usar siempre `CodeStock.gs`** — incluye ventas y stock. `Code.gs` es la versión inicial y está deprecada.
+> ⚠️ **Usar siempre `CodeStock.gs`** — es la versión activa y completa. `Code.gs` está deprecada.
 
 ---
 
-## 🚀 Configuración Rápida
+## 🚀 Setup
 
 ### 1. Google Apps Script
 
-1. Ve a [script.google.com](https://script.google.com) → **Nuevo proyecto**
-2. Pega el contenido de **`CodeStock.gs`** (reemplaza todo el editor)
-3. En **⚙️ Project Settings → Script Properties**, agrega:
+1. [script.google.com](https://script.google.com) → Nuevo proyecto → Pegar contenido de **`CodeStock.gs`**
+2. **⚙️ Project Settings → Script Properties:**
 
 | Propiedad | Descripción | Ejemplo |
 |-----------|-------------|---------|
 | `SAP_BASE_URL` | URL base de Service Layer | `https://servidor:50000/b1s/v1` |
-| `SAP_COMPANY_DB` | Nombre de la empresa en SAP | `MIEMPRESA` |
-| `SAP_USER` | Usuario de integración SAP | `Integrador` |
-| `SAP_PASSWORD` | Contraseña del usuario | `••••••` |
-| `SAP_LANGUAGE` | Código de idioma SAP | `25` (español) |
-| `SAP_DAYS_BACK` | Días de historial por defecto | `5` (el HTML pide 14) |
+| `SAP_COMPANY_DB` | Empresa por defecto | `MIEMPRESA` |
+| `SAP_USER` | Usuario de integración | `Integrador` |
+| `SAP_PASSWORD` | Contraseña | `••••••` |
+| `SAP_LANGUAGE` | Código de idioma | `25` (español) |
+| `SAP_DAYS_BACK` | Días de historial por defecto | `5` |
+| `SAP_COMPANIES` | Lista de empresas (opcional) | ver abajo |
 
-> ⚠️ **Nunca pongas credenciales directamente en el código. Usa siempre Script Properties.**
+**Para multi-empresa**, agregar:
+```json
+SAP_COMPANIES = [
+  {"id": "TEST", "name": "Empresa Test", "db": "TESTSOP"},
+  {"id": "PROD", "name": "Producción",   "db": "PRODDB"}
+]
+```
 
-4. **Deploy → New Deployment → Web App**
-   - *Execute as:* **Me**
-   - *Who has access:* **Anyone**
-   - Copia la URL: `https://script.google.com/macros/s/.../exec`
+> ⚠️ **Nunca pongas credenciales en el código. Usa siempre Script Properties.**
 
-5. Ejecuta `setupTrigger()` una vez para activar el refresco automático cada 6 horas.
+3. **Deploy → New Deployment → Web App**
+   - Execute as: **Me** | Who has access: **Anyone**
+   - Copia la URL resultante
 
-6. Si tu DB tiene datos históricos (no recientes), agrega la propiedad:
+4. Ejecuta `setupTrigger()` una vez para activar el refresco automático cada 6 horas.
+
+5. Para datos históricos (DB de prueba con fechas antiguas):
    ```
    SAP_DAYS_BACK = 800
    ```
 
-### 2. Configurar el HTML
+> ⚠️ **Cada vez que modifiques `CodeStock.gs`** debes crear una nueva versión:
+> `Deploy → Manage Deployments → ✏️ → New Version → Deploy`
 
-En `index.html`, actualiza las dos constantes:
+### 2. Configurar URLs en index.html
 
 ```js
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/.../exec';
-const STOCK_URL       = 'https://script.google.com/macros/s/.../exec?action=stock';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/TU_ID/exec';
+const STOCK_URL       = 'https://script.google.com/macros/s/TU_ID/exec?action=stock';
 ```
 
-> Si usas un solo deploy de `CodeStock.gs`, ambas URLs comparten el mismo base URL — solo difiere `?action=stock`.
-
-Luego haz push:
-```bash
-git add index.html
-git commit -m "chore: set Apps Script URLs"
-git push
-```
+> Si usas un único deploy de `CodeStock.gs`, ambas URLs comparten el mismo base.
 
 ### 3. GitHub Pages
 
-1. Ve a `https://github.com/fjhr/sap-dashboard/settings/pages`
-2. Source: **Deploy from branch** / `master` / `/ (root)`
-3. En ~1 minuto disponible en **`https://fjhr.github.io/sap-dashboard`**
+1. `Settings → Pages → Deploy from branch → master / / (root)`
+2. Disponible en `https://TU_USUARIO.github.io/sap-dashboard` en ~1 minuto
 
 ---
 
-## 🔌 API Reference
+## 🔌 API Reference — Apps Script
 
 ### Ventas
+| Endpoint | Descripción |
+|----------|-------------|
+| `GET /exec` | Ventas (últimos `SAP_DAYS_BACK` días, caché 6h) |
+| `GET /exec?daysBack=14` | Ventas con rango personalizado |
+| `GET /exec?company=ID` | Ventas de empresa específica |
+| `GET /exec?daysBack=14&company=ID` | Combinados |
 
-```
-GET /exec                    # últimos SAP_DAYS_BACK días (desde Script Properties)
-GET /exec?daysBack=14        # sobrescribe el rango (útil para comparativas)
-```
-
-**Respuesta:**
 ```json
 {
   "lastUpdated": "2026-07-06T21:00:00Z",
   "currency": "CLP",
   "dateFrom": "2026-06-29",
-  "invoices":   [{ "DocNum": 247041, "CardName": "Cliente SA", "DocDate": "2026-07-01T00:00:00Z", "DocTotal": 1250000, "DocumentStatus": "bost_Open" }],
+  "invoices":   [{ "DocNum": 1, "CardName": "Cliente", "DocDate": "...", "DocTotal": 1250000, "DocumentStatus": "bost_Open", "SalesPersonCode": 3 }],
   "orders":     [...],
   "deliveries": [...]
 }
 ```
 
+### Vendedores
+```
+GET /exec?action=sellers
+GET /exec?action=sellers&company=ID
+```
+```json
+[{ "SalesEmployeeCode": 3, "SalesEmployeeName": "Juan Pérez" }]
+```
+
+### Empresas
+```
+GET /exec?action=companies
+```
+```json
+[{ "id": "TEST", "name": "Empresa Test" }, { "id": "PROD", "name": "Producción" }]
+```
+
 ### Stock
-
 ```
-GET /exec?action=stock              # stock cacheado (6h TTL)
-GET /exec?action=stock&refresh=1    # fuerza lectura fresca desde SAP
+GET /exec?action=stock                    → caché 6h
+GET /exec?action=stock&refresh=1          → fuerza lectura fresca
+GET /exec?action=stock&company=ID         → empresa específica
 ```
-
-**Respuesta:**
 ```json
 {
-  "lastUpdated": "2026-07-06T21:00:00Z",
+  "lastUpdated": "...",
   "totales": { "articulos": 1240, "unidades": 58320, "bodegas": 5 },
   "bodegas":   [{ "codigo": "01", "nombre": "Bodega Principal" }],
-  "articulos": [{ "codigo": "ART001", "nombre": "Producto X", "total": 150, "bodegas": { "01": 100, "02": 50 } }]
+  "articulos": [{ "codigo": "ART001", "nombre": "Producto", "total": 150, "bodegas": { "01": 100, "02": 50 } }]
 }
 ```
 
@@ -180,81 +209,73 @@ GET /exec?action=stock&refresh=1    # fuerza lectura fresca desde SAP
 
 ## 🔧 Diagnóstico y Mantenimiento
 
-### Funciones útiles en Apps Script
+### Funciones útiles en el editor de Apps Script
 
 ```javascript
-// Verificar login a SAP (revisar logs)
-testSAP()
+testSAP()    // Login a SAP — verifica status 200 y SessionId en los logs
+testStock()  // Consulta stock y loguea primeros 3 artículos
 
-// Consultar y loguear primeros artículos de stock
-testStock()
-
-// Forzar limpieza del caché de ventas
-function clearCache() {
+// Limpiar caché de ventas
+function clearSalesCache() {
   var c = CacheService.getScriptCache();
-  c.remove('sap_sales_data');
-  c.remove('sap_sales_data_14'); // si se usó daysBack=14
+  ['sap_sales_data','sap_sales_data_14'].forEach(function(k){ c.remove(k); });
 }
 
 // Limpiar caché de stock
 function clearStockCache() {
   var c = CacheService.getScriptCache();
+  var meta = c.get('sap_stock_data_META');
+  if (meta) for (var i=0; i<parseInt(meta); i++) c.remove('sap_stock_data_'+i);
   c.remove('sap_stock_data_META');
-  for (var i = 0; i < 20; i++) c.remove('sap_stock_data_' + i);
 }
 ```
 
 ### Errores frecuentes
 
-| Error | Causa probable | Solución |
-|-------|----------------|----------|
-| `invoices: []` vacío | Filtro de fecha no coincide con datos | Aumentar `SAP_DAYS_BACK` o verificar fechas en SAP |
+| Error | Causa | Solución |
+|-------|-------|----------|
+| Arrays vacíos | Fechas no coinciden con datos SAP | Aumentar `SAP_DAYS_BACK` |
 | `SAP Login failed` | Credenciales incorrectas | Verificar Script Properties |
-| `HTTP 401` en queries | Cookie `B1SESSION` expirada | El script hace logout/login automático; verificar `SessionTimeout` en SAP |
-| `HTTP 500` en stock | Timeout por volumen de artículos | Reducir `STOCK_MAX_PAGINAS` en `CodeStock.gs` |
-| Dashboard en blanco | URL de Apps Script incorrecta | Verificar las constantes `APPS_SCRIPT_URL` y `STOCK_URL` en `index.html` |
-
-### Actualizar después de cambios en Apps Script
-
-Cada vez que modifiques `CodeStock.gs` debes **crear una nueva versión del deploy**:
-```
-Deploy → Manage Deployments → ✏️ editar → New Version → Deploy
-```
-Los cambios **no** se aplican automáticamente al deploy existente.
+| `HTTP 401` en queries | Sesión expirada | El script hace re-login automático; revisar `SessionTimeout` |
+| `HTTP 500` en stock | Timeout por volumen | Reducir `STOCK_MAX_PAGINAS` en `CodeStock.gs` |
+| Dashboard en blanco | URL de Apps Script incorrecta | Verificar `APPS_SCRIPT_URL` y `STOCK_URL` en `index.html` |
+| Vendedores vacíos | `/SalesPersons` sin datos | Normal en DBs de prueba; el filtro se oculta automáticamente |
+| Empresas no aparecen | `SAP_COMPANIES` no configurada | Agregar Script Property con JSON; selector se oculta si no existe |
 
 ---
 
 ## 🔐 Seguridad
 
 - ✅ Credenciales en **Script Properties** (cifrado en reposo por Google)
-- ✅ Auth SAP: `SessionId` del body del login → cookie `B1SESSION=<id>` (no usar `Set-Cookie` header)
-- ✅ El Web App solo expone datos de lectura — no acepta escritura
-- ✅ El HTML es 100% estático — no almacena credenciales ni datos sensibles
-- ✅ Service Worker solo cachea assets estáticos; las llamadas a la API siempre van a la red
+- ✅ Auth SAP: `SessionId` del body del login → `Cookie: B1SESSION=<id>` (NO usar header `Set-Cookie`)
+- ✅ Endpoint `?action=companies` expone solo `id` y `name`, nunca la contraseña ni `db`
+- ✅ Web App solo expone datos de lectura, no acepta escritura
+- ✅ HTML 100% estático, sin credenciales
+- ✅ Service Worker cachea solo assets estáticos; API siempre va a la red
 
 ---
 
-## 🛠️ Stack Tecnológico
+## 🛠️ Stack
 
 | Tecnología | Versión | Uso |
 |-----------|---------|-----|
-| [Google Apps Script](https://script.google.com) | — | Backend, caché, triggers |
-| [SAP B1 Service Layer](https://help.sap.com) | OData v1 | Fuente de datos |
-| [Chart.js](https://www.chartjs.org/) | 4.4.3 | Gráficas interactivas |
-| [Tailwind CSS](https://tailwindcss.com/) | CDN | Estilos |
-| [GitHub Pages](https://pages.github.com/) | — | Hosting estático gratuito |
-| PWA (Web APIs) | — | Instalable, offline-first |
+| Google Apps Script | — | Backend, caché, triggers, auth SAP |
+| SAP B1 Service Layer | OData v1 | Fuente de datos (Facturas, Pedidos, Entregas, Stock, Vendedores) |
+| Chart.js | 4.4.3 CDN | Gráficas interactivas (bar, line, doughnut) |
+| Tailwind CSS | CDN | Estilos responsive |
+| GitHub Pages | — | Hosting estático gratuito |
+| PWA (Web APIs) | — | Instalable, offline-first con Service Worker |
 
 ---
 
-## 📈 Roadmap / Ideas Futuras
+## 📈 Roadmap
 
-- [ ] Filtro por vendedor (requiere campo `SalesPersonCode` en SAP)
-- [ ] Comparativa semana a semana automática (sin selección manual)
-- [ ] Notificaciones push cuando el stock cae bajo mínimo
-- [ ] Autenticación con Google OAuth (acceso solo al dominio de la empresa)
-- [ ] Soporte multi-empresa (selector de `SAP_COMPANY_DB`)
-- [ ] Panel de KPIs configurables por el usuario
+- [ ] **Reporte automático por email** — Apps Script trigger diario con resumen HTML
+- [ ] **Persistencia histórica en Google Sheets** — historial de meses/años, no solo 14 días
+- [ ] **Notificaciones push de stock bajo** — PWA PushManager
+- [ ] **Autenticación Google OAuth** — acceso solo al dominio de la empresa
+- [ ] **Comparativa semana a semana automática** — sin selección manual de fechas
+- [ ] **Filtro por familia de artículos** — requiere campo `ItemsGroupCode` en SAP
 
 ---
 
@@ -272,201 +293,11 @@ Los cambios **no** se aplican automáticamente al deploy existente.
 ```bash
 git clone https://github.com/fjhr/sap-dashboard
 cd sap-dashboard
-# Crear rama de trabajo
 git checkout -b feat/mi-mejora
-# ... hacer cambios ...
+# ... cambios ...
 git push origin feat/mi-mejora
 # Abrir Pull Request en GitHub
 ```
-
----
-
-## 📄 Licencia
-
-MIT — libre para uso interno y comercial.
-
-Dashboard web de **Ventas** y **Stock** para SAP Business One, publicado en GitHub Pages y alimentado por Google Apps Script en tiempo real.
-
-🌐 **Live:** [fjhr.github.io/sap-dashboard](https://fjhr.github.io/sap-dashboard)
-
----
-
-## ✨ Características
-
-### Pestaña Ventas
-- **KPIs**: Total facturado (CLP), N° de Facturas, Pedidos y Entregas
-- **Gráfica de barras**: Facturación diaria de los últimos N días
-- **Gráfica donut**: Distribución proporcional de documentos
-- **Top 5 clientes**: Ranking por monto facturado con barra de progreso
-- **Tabla de facturas**: Detalle con número, cliente, fecha, monto y estado
-
-### Pestaña Stock
-- **KPIs**: Artículos con stock, Unidades totales, N° de Bodegas
-- **Gráfica de barras**: Unidades por bodega
-- **Tabla interactiva**: Stock por artículo y bodega con buscador en tiempo real
-- Soporte para paginación automática (hasta 10.000 artículos)
-
----
-
-## 🏗️ Arquitectura
-
-```
-SAP Business One (Service Layer)
-          │
-          │  HTTPS – cada 6 horas (trigger automático)
-          ▼
- Google Apps Script (Web App)
-  ├─ doGet()            → ventas (últimos N días)
-  ├─ doGet(?action=stock) → stock por bodega
-  └─ CacheService       → respuestas en memoria (6h TTL)
-          │
-          │  fetch() al cargar la página
-          ▼
-  GitHub Pages (index.html)
-  ├─ Tab: Ventas  (Tailwind + Chart.js)
-  └─ Tab: Stock   (Tailwind + Chart.js + búsqueda)
-```
-
----
-
-## 📁 Estructura del Proyecto
-
-```
-sap-dashboard/
-├── index.html      # Dashboard web (Tailwind CSS + Chart.js)
-├── Code.gs         # Apps Script: solo ventas (versión base)
-├── CodeStock.gs    # Apps Script: ventas + stock (versión completa ✅)
-├── README.md       # Este archivo
-└── SETUP.md        # Guía de configuración paso a paso
-```
-
-> **Usar `CodeStock.gs`** — es la versión más completa e incluye todo lo de `Code.gs`.
-
----
-
-## 🚀 Configuración Rápida
-
-### 1. Google Apps Script
-
-1. Ve a [script.google.com](https://script.google.com) → **Nuevo proyecto**
-2. Pega el contenido de `CodeStock.gs`
-3. En **⚙️ Project Settings → Script Properties**, agrega:
-
-| Propiedad | Valor |
-|-----------|-------|
-| `SAP_BASE_URL` | `https://tu-servidor:50000/b1s/v1` |
-| `SAP_COMPANY_DB` | nombre de la empresa en SAP |
-| `SAP_USER` | usuario de integración |
-| `SAP_PASSWORD` | contraseña |
-| `SAP_LANGUAGE` | `25` (español) |
-| `SAP_DAYS_BACK` | `5` (días hacia atrás, ajustable) |
-
-> ⚠️ **Nunca pongas credenciales directamente en el código.**
-
-4. **Deploy → New Deployment → Web App**
-   - *Execute as:* **Me**
-   - *Who has access:* **Anyone**
-   - Copia la URL generada
-
-5. Ejecuta `setupTrigger()` una vez para activar la actualización automática cada 6 horas.
-
-### 2. Configurar el HTML
-
-En `index.html`, actualiza las dos constantes con tus URLs de Apps Script:
-
-```js
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/.../exec';
-const STOCK_URL       = 'https://script.google.com/macros/s/.../exec?action=stock';
-```
-
-### 3. GitHub Pages
-
-1. Ve a `Settings → Pages` del repositorio
-2. Source: **Deploy from branch** / `master` / `/ (root)`
-3. En ~1 minuto el sitio estará disponible en `https://TU_USUARIO.github.io/sap-dashboard`
-
----
-
-## 🔌 API Reference (Apps Script)
-
-| Endpoint | Descripción |
-|----------|-------------|
-| `GET /exec` | Ventas de los últimos N días (caché 6h) |
-| `GET /exec?action=stock` | Stock por artículo y bodega (caché 6h) |
-| `GET /exec?action=stock&refresh=1` | Stock forzando lectura fresca desde SAP |
-
-### Respuesta de Ventas
-```json
-{
-  "lastUpdated": "2026-07-06T21:00:00Z",
-  "currency": "CLP",
-  "dateFrom": "2026-07-01",
-  "invoices": [ { "DocNum": 247041, "CardName": "Cliente", "DocDate": "...", "DocTotal": 990 } ],
-  "orders": [ ... ],
-  "deliveries": [ ... ]
-}
-```
-
-### Respuesta de Stock
-```json
-{
-  "lastUpdated": "2026-07-06T21:00:00Z",
-  "totales": { "articulos": 1240, "unidades": 58320, "bodegas": 5 },
-  "bodegas": [ { "codigo": "01", "nombre": "Bodega Principal" } ],
-  "articulos": [ { "codigo": "ART001", "nombre": "Producto", "total": 150, "bodegas": { "01": 100, "02": 50 } } ]
-}
-```
-
----
-
-## 🔧 Funciones de Diagnóstico (Apps Script)
-
-Ejecuta estas funciones desde el editor de Apps Script para diagnosticar problemas:
-
-```javascript
-testSAP()    // Verifica login a SAP → revisa status 200 y SessionId
-testStock()  // Consulta stock completo y loguea los primeros 3 artículos
-clearCache() // (agregar manualmente) Limpia caché para forzar re-consulta
-```
-
-### Limpiar caché manualmente
-```javascript
-function clearCache() {
-  var c = CacheService.getScriptCache();
-  c.remove('sap_sales_data');
-  c.remove('sap_stock_data_META');
-}
-```
-
----
-
-## 🔐 Seguridad
-
-- Las credenciales SAP se almacenan en **Script Properties** (cifrado en reposo por Google)
-- La autenticación usa `SessionId` del body del login como cookie `B1SESSION`
-- El Apps Script solo expone datos agregados — no acepta parámetros de escritura
-- El HTML es completamente estático y no almacena credenciales
-
----
-
-## 👥 Equipo
-
-| Usuario | Rol |
-|---------|-----|
-| [@fjhr](https://github.com/fjhr) | Owner / Backend |
-| [@KmiloVargs](https://github.com/KmiloVargs) | Colaborador |
-
----
-
-## 🛠️ Tecnologías
-
-| Tecnología | Uso |
-|-----------|-----|
-| [Google Apps Script](https://script.google.com) | Backend / integración SAP |
-| [SAP B1 Service Layer](https://help.sap.com/docs/SAP_BUSINESS_ONE) | Fuente de datos (OData REST) |
-| [Chart.js 4](https://www.chartjs.org/) | Gráficas interactivas |
-| [Tailwind CSS](https://tailwindcss.com/) | Estilos (CDN) |
-| [GitHub Pages](https://pages.github.com/) | Hosting estático gratuito |
 
 ---
 
