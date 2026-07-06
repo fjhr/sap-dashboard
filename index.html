@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Ventas SAP B1</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    body { background: #0f172a; }
+    .card { background: #1e293b; border: 1px solid #334155; }
+    .kpi-value { font-variant-numeric: tabular-nums; }
+    #salesChart { max-height: 320px; }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen p-4 md:p-8">
+
+  <!-- Header -->
+  <header class="mb-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-white">📊 Dashboard de Ventas</h1>
+        <p class="text-slate-400 text-sm mt-1">SAP Business One · Últimos 5 días</p>
+      </div>
+      <div class="text-right">
+        <span id="lastUpdated" class="text-xs text-slate-500">Cargando...</span>
+        <button onclick="loadData()" class="ml-3 px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 rounded-lg transition">↻ Actualizar</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Loading / Error -->
+  <div id="loadingState" class="text-center py-20">
+    <div class="inline-block w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+    <p class="mt-3 text-slate-400">Consultando SAP...</p>
+  </div>
+  <div id="errorState" class="hidden text-center py-20">
+    <p class="text-red-400 text-lg">⚠️ Error al cargar datos</p>
+    <p id="errorMsg" class="text-slate-500 text-sm mt-2"></p>
+  </div>
+
+  <!-- Dashboard content (hidden until data loads) -->
+  <div id="dashboard" class="hidden space-y-6">
+
+    <!-- KPI Cards -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="card rounded-xl p-5">
+        <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Total Facturado</p>
+        <p id="kpiTotal" class="kpi-value text-2xl font-bold text-emerald-400">—</p>
+        <p class="text-slate-500 text-xs mt-1">CLP</p>
+      </div>
+      <div class="card rounded-xl p-5">
+        <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Facturas</p>
+        <p id="kpiInvoices" class="kpi-value text-2xl font-bold text-indigo-400">—</p>
+        <p class="text-slate-500 text-xs mt-1">documentos</p>
+      </div>
+      <div class="card rounded-xl p-5">
+        <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Pedidos</p>
+        <p id="kpiOrders" class="kpi-value text-2xl font-bold text-sky-400">—</p>
+        <p class="text-slate-500 text-xs mt-1">documentos</p>
+      </div>
+      <div class="card rounded-xl p-5">
+        <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Entregas</p>
+        <p id="kpiDeliveries" class="kpi-value text-2xl font-bold text-violet-400">—</p>
+        <p class="text-slate-500 text-xs mt-1">documentos</p>
+      </div>
+    </section>
+
+    <!-- Charts row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Bar chart: ventas por día -->
+      <div class="card rounded-xl p-5">
+        <h2 class="text-sm font-semibold text-slate-300 mb-4">Facturación por Día (CLP)</h2>
+        <canvas id="salesChart"></canvas>
+      </div>
+      <!-- Donut: distribución documentos -->
+      <div class="card rounded-xl p-5 flex flex-col items-center">
+        <h2 class="text-sm font-semibold text-slate-300 mb-4 self-start">Distribución de Documentos</h2>
+        <canvas id="donutChart" style="max-height:280px;max-width:280px;"></canvas>
+      </div>
+    </div>
+
+    <!-- Top Clients -->
+    <div class="card rounded-xl p-5">
+      <h2 class="text-sm font-semibold text-slate-300 mb-4">Top 5 Clientes por Facturación</h2>
+      <div id="topClients" class="space-y-2"></div>
+    </div>
+
+    <!-- Invoices Table -->
+    <div class="card rounded-xl p-5">
+      <h2 class="text-sm font-semibold text-slate-300 mb-4">Detalle de Facturas</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-slate-400 border-b border-slate-700 text-left">
+              <th class="pb-2 pr-4">N° Doc</th>
+              <th class="pb-2 pr-4">Cliente</th>
+              <th class="pb-2 pr-4">Fecha</th>
+              <th class="pb-2 pr-4 text-right">Total (CLP)</th>
+              <th class="pb-2">Estado</th>
+            </tr>
+          </thead>
+          <tbody id="invoicesTable" class="divide-y divide-slate-800"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /dashboard -->
+
+  <script>
+    // =========================================================
+    // CONFIGURACIÓN — reemplaza esta URL con la de tu Web App
+    // =========================================================
+    const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL';
+    // =========================================================
+
+    const fmt = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+    let salesChart, donutChart;
+
+    async function loadData() {
+      showLoading();
+      try {
+        const res = await fetch(APPS_SCRIPT_URL);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        renderDashboard(data);
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    function renderDashboard(data) {
+      const { invoices = [], orders = [], deliveries = [], lastUpdated } = data;
+
+      // KPIs
+      const totalInvoiced = invoices.reduce((s, d) => s + (d.DocTotal || 0), 0);
+      document.getElementById('kpiTotal').textContent = fmt.format(totalInvoiced);
+      document.getElementById('kpiInvoices').textContent = invoices.length;
+      document.getElementById('kpiOrders').textContent = orders.length;
+      document.getElementById('kpiDeliveries').textContent = deliveries.length;
+      document.getElementById('lastUpdated').textContent =
+        'Actualizado: ' + (lastUpdated ? new Date(lastUpdated).toLocaleString('es-CL') : '—');
+
+      // Sales by day chart
+      const byDay = groupByDay(invoices);
+      renderBarChart(byDay);
+
+      // Donut
+      renderDonut(invoices.length, orders.length, deliveries.length);
+
+      // Top clients
+      renderTopClients(invoices);
+
+      // Table
+      renderTable(invoices);
+
+      showDashboard();
+    }
+
+    function groupByDay(docs) {
+      const map = {};
+      docs.forEach(d => {
+        const day = (d.DocDate || '').substring(0, 10);
+        if (day) map[day] = (map[day] || 0) + (d.DocTotal || 0);
+      });
+      const sorted = Object.keys(map).sort();
+      return { labels: sorted, values: sorted.map(k => map[k]) };
+    }
+
+    function renderBarChart({ labels, values }) {
+      const ctx = document.getElementById('salesChart').getContext('2d');
+      if (salesChart) salesChart.destroy();
+      salesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Total (CLP)',
+            data: values,
+            backgroundColor: 'rgba(99,102,241,0.7)',
+            borderColor: 'rgba(99,102,241,1)',
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+            y: { ticks: { color: '#94a3b8', callback: v => fmt.format(v) }, grid: { color: '#334155' } }
+          }
+        }
+      });
+    }
+
+    function renderDonut(inv, ord, del) {
+      const ctx = document.getElementById('donutChart').getContext('2d');
+      if (donutChart) donutChart.destroy();
+      donutChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Facturas', 'Pedidos', 'Entregas'],
+          datasets: [{
+            data: [inv, ord, del],
+            backgroundColor: ['#6366f1', '#38bdf8', '#a78bfa'],
+            borderColor: '#1e293b',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 16 } }
+          }
+        }
+      });
+    }
+
+    function renderTopClients(invoices) {
+      const map = {};
+      invoices.forEach(d => {
+        const name = d.CardName || d.CardCode || 'Sin nombre';
+        map[name] = (map[name] || 0) + (d.DocTotal || 0);
+      });
+      const top5 = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const max = top5[0]?.[1] || 1;
+      const container = document.getElementById('topClients');
+      container.innerHTML = top5.map(([name, total]) => `
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-slate-300 truncate max-w-xs">${esc(name)}</span>
+            <span class="text-emerald-400 font-mono ml-2">${fmt.format(total)}</span>
+          </div>
+          <div class="w-full bg-slate-700 rounded-full h-1.5">
+            <div class="bg-emerald-500 h-1.5 rounded-full" style="width:${(total/max*100).toFixed(1)}%"></div>
+          </div>
+        </div>`).join('');
+    }
+
+    function renderTable(invoices) {
+      const statusLabel = { bost_Open: 'Abierta', bost_Close: 'Cerrada', bost_Delivered: 'Entregada' };
+      const tbody = document.getElementById('invoicesTable');
+      tbody.innerHTML = invoices.slice(0, 50).map(d => `
+        <tr class="text-slate-300 hover:bg-slate-800/50 transition">
+          <td class="py-2 pr-4 font-mono text-xs">${d.DocNum || '—'}</td>
+          <td class="py-2 pr-4 text-xs max-w-xs truncate">${esc(d.CardName || d.CardCode || '—')}</td>
+          <td class="py-2 pr-4 text-xs">${(d.DocDate || '').substring(0, 10)}</td>
+          <td class="py-2 pr-4 text-xs text-right font-mono">${fmt.format(d.DocTotal || 0)}</td>
+          <td class="py-2 text-xs">
+            <span class="px-2 py-0.5 rounded-full text-xs ${d.DocumentStatus === 'bost_Close' ? 'bg-slate-600 text-slate-300' : 'bg-emerald-900 text-emerald-300'}">
+              ${statusLabel[d.DocumentStatus] || d.DocumentStatus || '—'}
+            </span>
+          </td>
+        </tr>`).join('');
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function showLoading() {
+      document.getElementById('loadingState').classList.remove('hidden');
+      document.getElementById('errorState').classList.add('hidden');
+      document.getElementById('dashboard').classList.add('hidden');
+    }
+    function showError(msg) {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('errorState').classList.remove('hidden');
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('errorMsg').textContent = msg;
+    }
+    function showDashboard() {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('errorState').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
