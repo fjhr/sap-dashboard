@@ -357,6 +357,9 @@
     const DAYS_BACK = 14; // días totales a pedir (14 = 7 actuales + 7 anteriores)
     const PERIOD    = 7;  // días de cada período para comparativa
     const MAX_FILAS = 300;
+    // Rango efectivamente pedido al backend; se amplía cuando los filtros de fecha lo exceden
+    let currentDaysBack = DAYS_BACK;
+    let currentDateTo   = '';
     // =========================================================
 
     const fmt    = new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});
@@ -483,7 +486,7 @@
     }
     function getSalesUrl(){
       const creds = getCredParams();
-      return buildUrl(APPS_SCRIPT_URL,{daysBack:DAYS_BACK,company:getSelectedCompany(),...creds,_t:Date.now()});
+      return buildUrl(APPS_SCRIPT_URL,{daysBack:currentDaysBack,dateTo:currentDateTo,company:getSelectedCompany(),...creds,_t:Date.now()});
     }
     function getSellersUrl(){
       const creds = getCredParams();
@@ -527,6 +530,7 @@
     }
     async function changeCompany(){
       rawData=null;stockData=null;filteredInvoices=[];filteredOrders=[];filteredDeliveries=[];filteredStockItems=null;
+      currentDaysBack=DAYS_BACK;currentDateTo='';
       document.getElementById('invoicesTable').innerHTML='';
       document.getElementById('ordersTable').innerHTML='';
       document.getElementById('deliveriesTable').innerHTML='';
@@ -586,6 +590,8 @@
       if(!rawData){renderHeatmap([]);return;}
       const desde=document.getElementById('filtroDesde').value;
       const hasta=document.getElementById('filtroHasta').value;
+      // Si el rango de fechas excede lo descargado, pedir más datos al backend
+      if(expandRangeIfNeeded(desde,hasta))return;
       const cliente=document.getElementById('filtroCliente').value.toLowerCase();
       const vendedor=document.getElementById('filtroVendedor').value;
       const metaDia=parseFloat(document.getElementById('metaDiaria').value)||0;
@@ -614,6 +620,29 @@
       syncAccordion('deliveries');
       renderHeatmap(filteredInvoices);
       showDashboard();
+    }
+
+    // Amplía el rango consultado al backend cuando los filtros de fecha exceden lo ya descargado.
+    // Devuelve true si disparó una recarga (applyFilters volverá a correr al llegar los datos).
+    function expandRangeIfNeeded(desde,hasta){
+      if(!rawData.dateFrom)return false;
+      const hoy=dateKey(new Date());
+      const coveredFrom=rawData.dateFrom;
+      const coveredTo=rawData.dateTo||hoy;
+      // La comparativa (splitPeriods) necesita PERIOD días antes de "desde"
+      const needFrom=desde?dateKey(shiftDate(new Date(desde+'T00:00:00'),-PERIOD)):coveredFrom;
+      if(needFrom>=coveredFrom&&(!hasta||hasta<=coveredTo))return false;
+      let days=currentDaysBack;
+      if(desde){
+        const diff=Math.ceil((new Date(hoy+'T00:00:00')-new Date(desde+'T00:00:00'))/86400000);
+        days=Math.max(DAYS_BACK,Math.min(diff+PERIOD+2,7300));
+      }
+      const dateTo=(hasta&&hasta<hoy)?hasta:'';
+      if(days===currentDaysBack&&dateTo===currentDateTo)return false; // este rango ya se pidió: no reintentar
+      currentDaysBack=days;
+      currentDateTo=dateTo;
+      loadData();
+      return true;
     }
 
     function splitPeriods(desde,hasta){

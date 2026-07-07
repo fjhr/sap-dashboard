@@ -22,6 +22,7 @@ var STOCK_CACHE_KEY = 'sap_stock_data';
 var SELLERS_CACHE_KEY = 'sap_sellers_data';
 var STOCK_SOLO_CON_STOCK = true; // true = solo articulos con stock > 0
 var STOCK_MAX_PAGINAS = 100;     // tope de seguridad (100 pag x 100 items = 10.000)
+var SALES_MAX_PAGINAS = 10;      // tope ventas (10 pag x 100 docs por tipo, los más recientes primero)
 
 // Override de credenciales por-request (se setea en doGet, stateless entre requests)
 var currentCredOverride_ = null;
@@ -71,12 +72,15 @@ function doGet(e) {
     if (action === 'stock') return serveStock_(e, companyConfig);
 
     var daysBack = params.daysBack ? parseInt(params.daysBack, 10) : null;
+    // Límite superior opcional del rango (yyyy-mm-dd); se ignora si viene malformado
+    var dateTo = (params.dateTo && /^\d{4}-\d{2}-\d{2}$/.test(params.dateTo)) ? params.dateTo : null;
     // Con credenciales custom no usamos caché (cada usuario puede tener creds distintas)
-    var cacheKey = currentCredOverride_ ? null : buildCacheKey_(CACHE_KEY, companyConfig.id, daysBack);
+    var cacheSuffix = [daysBack, dateTo].filter(Boolean).join('_') || null;
+    var cacheKey = currentCredOverride_ ? null : buildCacheKey_(CACHE_KEY, companyConfig.id, cacheSuffix);
 
     var cache = CacheService.getScriptCache();
     var cached = cacheKey ? cache.get(cacheKey) : null;
-    var data = cached ? JSON.parse(cached) : fetchAndCache(daysBack, cacheKey, companyConfig.db);
+    var data = cached ? JSON.parse(cached) : fetchAndCache(daysBack, cacheKey, companyConfig.db, dateTo);
 
     return jsonResponse_(data);
 
@@ -91,16 +95,21 @@ function doGet(e) {
 // VENTAS
 // ============================================================
 
-function fetchAndCache(daysBackOverride, cacheKey, companyDb) {
-  var data = fetchSAPData(daysBackOverride, companyDb);
+function fetchAndCache(daysBackOverride, cacheKey, companyDb, dateTo) {
+  var data = fetchSAPData(daysBackOverride, companyDb, dateTo);
   // Solo guardar en caché si hay una key válida (no guardar cuando hay credenciales custom)
   if (cacheKey) {
-    CacheService.getScriptCache().put(cacheKey, JSON.stringify(data), CACHE_TTL);
+    try {
+      CacheService.getScriptCache().put(cacheKey, JSON.stringify(data), CACHE_TTL);
+    } catch (e) {
+      // Rangos grandes pueden superar los 100KB por clave del cache: servir sin cachear
+      Logger.log('No se pudo cachear ventas: ' + e.message);
+    }
   }
   return data;
 }
 
-function fetchSAPData(daysBackOverride, companyDb) {
+function fetchSAPData(daysBackOverride, companyDb, dateTo) {
   var props = PropertiesService.getScriptProperties();
   fetchWarnings_ = [];
   var session = openSAPSession_(companyDb);
@@ -116,9 +125,9 @@ function fetchSAPData(daysBackOverride, companyDb) {
   var deliveries = [];
 
   try {
-   invoices   = fetchAll(session.baseUrl, '/Invoices',      dateFilter, fields, session.headers);
-   orders     = fetchAll(session.baseUrl, '/Orders',        dateFilter, fields, session.headers);
-   deliveries = fetchAll(session.baseUrl, '/DeliveryNotes', dateFilter, fields, session.headers);
+   invoices   = fetchAll(session.baseUrl, '/Invoices',      dateFilter, fields, session.headers, dateTo);
+   orders     = fetchAll(session.baseUrl, '/Orders',        dateFilter, fields, session.headers, dateTo);
+   deliveries = fetchAll(session.baseUrl, '/DeliveryNotes', dateFilter, fields, session.headers, dateTo);
   } finally {
    closeSAPSession_(session);
   }
@@ -127,6 +136,7 @@ function fetchSAPData(daysBackOverride, companyDb) {
    lastUpdated: new Date().toISOString(),
     currency: 'CLP',
     dateFrom: dateFilter,
+    dateTo: dateTo || null,
     invoices: invoices,
     orders: orders,
     deliveries: deliveries
@@ -135,28 +145,40 @@ function fetchSAPData(daysBackOverride, companyDb) {
   return result;
 }
 
-function fetchAll(baseUrl, endpoint, dateFilter, fields, headers) {
+function fetchAll(baseUrl, endpoint, dateFilter, fields, headers, dateTo) {
+  var filter = "DocDate ge '" + dateFilter + "'";
+  if (dateTo) filter += " and DocDate le '" + dateTo + "'";
   var url = baseUrl + endpoint
-    + "?$filter=DocDate ge '" + dateFilter + "'"
+    + "?$filter=" + filter
     + "&$select=" + fields
-    + "&$orderby=DocDate desc"
-    + "&$top=100";
+    + "&$orderby=DocDate desc";
 
-  var resp = UrlFetchApp.fetch(url, {
-    method: 'get',
-    headers: headers,
-    muteHttpExceptions: true,
-    validateHttpsCertificates: false
-  });
+  var docs = [];
+  var paginas = 0;
 
-  if (resp.getResponseCode() !== 200) {
-    Logger.log('Error fetching ' + endpoint + ': ' + resp.getContentText());
-    fetchWarnings_.push(endpoint + ' HTTP ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
-    return [];
+  while (url && paginas < SALES_MAX_PAGINAS) {
+    var resp = UrlFetchApp.fetch(url, {
+      method: 'get',
+      headers: headers,
+      muteHttpExceptions: true,
+      validateHttpsCertificates: false
+    });
+
+    if (resp.getResponseCode() !== 200) {
+      Logger.log('Error fetching ' + endpoint + ': ' + resp.getContentText());
+      fetchWarnings_.push(endpoint + ' HTTP ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
+      break;
+    }
+
+    var json = JSON.parse(resp.getContentText());
+    docs = docs.concat(json.value || []);
+
+    var next = json['@odata.nextLink'] || json['odata.nextLink'] || null;
+    url = next ? ((next.indexOf('http') === 0) ? next : baseUrl + '/' + String(next).replace(/^\//, '')) : null;
+    paginas++;
   }
 
-  var json = JSON.parse(resp.getContentText());
-  return json.value || [];
+  return docs;
 }
 
 function serveSellers_(companyConfig) {
