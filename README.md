@@ -220,7 +220,7 @@ function clearStockCache() {
 | `SAP Login failed (HTTP xxx)` | Credenciales incorrectas o URL sin `/b1s/v1` | Verificar Script Properties o modal ⚙️; el mensaje incluye la respuesta de SAP |
 | Funciona en Postman pero no en el dashboard | Certificado autofirmado o servidor SAP no accesible desde internet | Todo fetch lleva `validateHttpsCertificates:false`; Apps Script llama desde IPs de Google (no sirve VPN local) |
 | Cambios en `CodeStock.gs` no se reflejan | Deployment sirviendo versión vieja | `clasp push -f` + `clasp deploy -i <deployment-id>`; verificar con `?action=ping` |
-| Cambios en `index.html` no se reflejan | Service Worker sirviendo caché | Ctrl+Shift+R o cerrar todas las pestañas del dashboard |
+| Cambios en `index.html` no se reflejan | Service Worker anterior a `v2` sirviendo caché | Ctrl+Shift+R una vez; desde `sap-dashboard-v2` el documento va network-first y no vuelve a pasar |
 | Dashboard en blanco | URL de Apps Script incorrecta | Verificar `APPS_SCRIPT_URL` / `STOCK_URL` |
 | Vendedores vacíos | `/SalesPersons` sin datos | Normal en DBs de prueba; filtro se oculta |
 | Empresas no aparecen | `SAP_COMPANIES` no configurada | Agregar Script Property con JSON |

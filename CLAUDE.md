@@ -168,7 +168,7 @@ Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`,
 7. **Con credOverride**: `currentCredOverride_` se setea en `doGet`, NO se pasa como parámetro entre funciones
 8. **Todo fetch a SAP** lleva `validateHttpsCertificates: false` (certificados autofirmados)
 9. **Errores de fetch no fatales** se acumulan en `fetchWarnings_` (se resetea en `fetchSAPData`) y salen como `warnings` en la respuesta — no tragarse errores solo con `Logger.log`
-10. **Tras publicar index.html**: el Service Worker cachea la versión vieja — probar con Ctrl+Shift+R
+10. **Service Worker**: el documento (`index.html`) va network-first desde `sap-dashboard-v2`; al cambiar la estrategia de caché o assets precacheados, **subir la versión de `CACHE_NAME`** en `sw.js` (si sus bytes no cambian, el navegador nunca reinstala el SW)
 
 ## Comandos útiles
 ```bash

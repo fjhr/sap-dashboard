@@ -1,5 +1,6 @@
 // SAP B1 Dashboard - Service Worker
-const CACHE_NAME = 'sap-dashboard-v1';
+// Subir la versión del cache con cada cambio en index.html/sw.js fuerza la actualización
+const CACHE_NAME = 'sap-dashboard-v2';
 const STATIC_ASSETS = [
   '/sap-dashboard/',
   '/sap-dashboard/index.html',
@@ -24,7 +25,7 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Fetch: cache-first for static, network-first for API calls
+// Fetch: network-first para el documento y la API, cache-first para el resto
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
@@ -36,6 +37,21 @@ self.addEventListener('fetch', e => {
           headers: { 'Content-Type': 'application/json' }
         })
       )
+    );
+    return;
+  }
+
+  // Network-first para el documento: si no, un deploy nuevo de index.html
+  // queda invisible para siempre (el SW viejo lo servía cache-first)
+  if (e.request.mode === 'navigate' || url.pathname === '/sap-dashboard/' || url.pathname.endsWith('/index.html')) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(e.request))
     );
     return;
   }

@@ -31,7 +31,7 @@ estable, cortando en página incompleta o al tope de páginas.
 - `currentCredOverride_` var módulo en `CodeStock.gs`, se setea en `doGet` (NO se pasa como param)
 - Errores de fetch OData no fatales → acumular en `fetchWarnings_` y devolver como `warnings` en la respuesta (no tragarlos con solo `Logger.log`)
 - Tras modificar `CodeStock.gs`: `clasp push -f` + `clasp deploy -i <deployment-id de la URL>` — sin esto producción sigue con código viejo. Verificar con `?action=ping`
-- Tras publicar `index.html`: el Service Worker cachea la versión vieja (probar con Ctrl+Shift+R)
+- Service Worker: documento network-first (desde `sap-dashboard-v2`); al cambiar estrategia de caché en `sw.js`, subir la versión de `CACHE_NAME` o el navegador nunca reinstala el SW
 - Commits incluyen trailer: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
 
 ## Features ya implementadas (no duplicar)
