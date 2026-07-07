@@ -502,12 +502,15 @@
       const l=document.body.classList.toggle('light');
       document.getElementById('themeIcon').setAttribute('href',l?'#i-sun':'#i-moon');
       localStorage.setItem('theme',l?'light':'dark');
-      if(rawData)renderHeatmap(filteredInvoices);
+      document.querySelector('meta[name="theme-color"]').setAttribute('content',l?'#ffffff':'#0f172a');
+      if(rawData)applyFilters();
+      if(stockData)applyStockFilters();
     }
     (function(){
       if(localStorage.getItem('theme')==='light'){
         document.body.classList.add('light');
         document.getElementById('themeIcon').setAttribute('href','#i-sun');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content','#ffffff');
       }
     })();
 
@@ -735,16 +738,30 @@
     function byDay(docs){
       const m={};docs.forEach(d=>{const k=(d.DocDate||'').substring(0,10);if(k)m[k]=(m[k]||0)+(d.DocTotal||0);});return m;
     }
-    function cc(){return document.body.classList.contains('light')?{g:'#e2e8f0',t:'#475569'}:{g:'#334155',t:'#94a3b8'};}
+    function cssVar(name){return getComputedStyle(document.body).getPropertyValue(name).trim();}
+    function hexToRgba(hex,a){const n=parseInt(hex.slice(1),16);return`rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;}
+    function chartColors(){
+      const isLight=document.body.classList.contains('light');
+      const primary=cssVar('--primary');
+      return{
+        primary,
+        primarySoft:hexToRgba(primary,.15),
+        primaryBar:hexToRgba(primary,.7),
+        up:cssVar('--up'),
+        sky:isLight?'#38bdf8':'#38bdf8',
+        grid:isLight?'#e2e8f0':'#334155',
+        ticks:isLight?'#475569':'#94a3b8'
+      };
+    }
 
     function renderCharts(current,previous){
-      const c=cc();
+      const c=chartColors();
       const curMap=byDay(current),curDays=Object.keys(curMap).sort();
 
       if(salesChart)salesChart.destroy();
       salesChart=new Chart(document.getElementById('salesChart').getContext('2d'),{
         type:'bar',
-        data:{labels:curDays,datasets:[{label:'CLP',data:curDays.map(k=>curMap[k]),backgroundColor:'rgba(99,102,241,.7)',borderColor:'rgba(99,102,241,1)',borderWidth:1,borderRadius:4}]},
+        data:{labels:curDays,datasets:[{label:'CLP',data:curDays.map(k=>curMap[k]),backgroundColor:c.primaryBar,borderColor:c.primary,borderWidth:1,borderRadius:4}]},
         options:{
           responsive:true,
           onClick:(_event,elements,chart)=>{
@@ -756,7 +773,7 @@
             applyFilters();
           },
           plugins:{legend:{display:false}},
-          scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmt.format(v)},grid:{color:c.g}}}
+          scales:{x:{ticks:{color:c.ticks},grid:{color:c.grid}},y:{ticks:{color:c.ticks,callback:v=>fmt.format(v)},grid:{color:c.grid}}}
         }
       });
 
@@ -764,8 +781,8 @@
       if(trendChart)trendChart.destroy();
       trendChart=new Chart(document.getElementById('trendChart').getContext('2d'),{
         type:'line',
-        data:{labels:all14Days,datasets:[{label:'Facturación diaria',data:all14Days.map(k=>all14Map[k]),borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.1)',fill:true,tension:.4,pointRadius:4}]},
-        options:{responsive:true,plugins:{legend:{labels:{color:c.t}}},scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmt.format(v)},grid:{color:c.g}}}}
+        data:{labels:all14Days,datasets:[{label:'Facturación diaria',data:all14Days.map(k=>all14Map[k]),borderColor:c.primary,backgroundColor:c.primarySoft,fill:true,tension:.4,pointRadius:4}]},
+        options:{responsive:true,plugins:{legend:{labels:{color:c.ticks}}},scales:{x:{ticks:{color:c.ticks},grid:{color:c.grid}},y:{ticks:{color:c.ticks,callback:v=>fmt.format(v)},grid:{color:c.grid}}}}
       });
 
       if(donutChart)donutChart.destroy();
@@ -773,8 +790,8 @@
       const totPrev=previous.reduce((s,d)=>s+(d.DocTotal||0),0);
       donutChart=new Chart(document.getElementById('donutChart').getContext('2d'),{
         type:'doughnut',
-        data:{labels:['Período actual','Período anterior'],datasets:[{data:[totCur,totPrev],backgroundColor:['#6366f1','#38bdf8'],borderColor:'var(--card)',borderWidth:3}]},
-        options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:c.t,padding:16}}}}
+        data:{labels:['Período actual','Período anterior'],datasets:[{data:[totCur,totPrev],backgroundColor:[c.primary,c.sky],borderColor:'var(--card)',borderWidth:3}]},
+        options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:c.ticks,padding:16}}}}
       });
     }
 
@@ -782,8 +799,8 @@
       const m={};inv.forEach(d=>{const n=d.CardName||d.CardCode||'Sin nombre';m[n]=(m[n]||0)+(d.DocTotal||0);});
       const top=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5);const max=top[0]?.[1]||1;
       document.getElementById('topClients').innerHTML=top.map(([name,tot])=>`
-        <div><div class="flex justify-between text-xs mb-1"><span class="t2 truncate max-w-xs">${esc(name)}</span><span class="text-emerald-400 font-mono ml-2">${fmt.format(tot)}</span></div>
-        <div class="w-full rounded-full h-1.5" style="background:var(--border)"><div class="bg-emerald-500 h-1.5 rounded-full" style="width:${(tot/max*100).toFixed(1)}%"></div></div></div>`).join('');
+        <div><div class="flex justify-between text-xs mb-1"><span class="t2 truncate max-w-xs">${esc(name)}</span><span class="kv ml-2" style="color:var(--up)">${fmt.format(tot)}</span></div>
+        <div class="w-full rounded-full h-1.5" style="background:var(--border)"><div class="h-1.5 rounded-full" style="background:var(--up);width:${(tot/max*100).toFixed(1)}%"></div></div></div>`).join('');
     }
     function dateKey(d){
       return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -796,8 +813,8 @@
     function renderHeatmap(invoices){
       const el=document.getElementById('heatmapContainer');
       if(!el)return;
-      const isLight=document.body.classList.contains('light');
-      const levels=isLight?['#9be9a8','#40c463','#30a14e','#216e39']:['#0d4429','#006d32','#26a641','#39d353'];
+      const primary=cssVar('--primary');
+      const levels=[hexToRgba(primary,.25),hexToRgba(primary,.45),hexToRgba(primary,.7),primary];
       const totals={};
       invoices.forEach(d=>{
         const k=(d.DocDate||'').substring(0,10);
@@ -1020,13 +1037,13 @@
     }
 
     function renderStockChart(data){
-      const c=cc(),bodegas=data.bodegas||[],arts=data.articulos||[];
+      const c=chartColors(),bodegas=data.bodegas||[],arts=data.articulos||[];
       const totals=bodegas.map(b=>arts.reduce((s,a)=>s+((a.bodegas||{})[b.codigo]||0),0));
       if(stockChart)stockChart.destroy();
       stockChart=new Chart(document.getElementById('stockChart').getContext('2d'),{
         type:'bar',
-        data:{labels:bodegas.map(b=>b.nombre||b.codigo),datasets:[{label:'Unidades',data:totals,backgroundColor:'rgba(16,185,129,.7)',borderColor:'rgba(16,185,129,1)',borderWidth:1,borderRadius:4}]},
-        options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmtNum.format(v)},grid:{color:c.g}}}}
+        data:{labels:bodegas.map(b=>b.nombre||b.codigo),datasets:[{label:'Unidades',data:totals,backgroundColor:hexToRgba(c.up,.7),borderColor:c.up,borderWidth:1,borderRadius:4}]},
+        options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:c.ticks},grid:{color:c.grid}},y:{ticks:{color:c.ticks,callback:v=>fmtNum.format(v)},grid:{color:c.grid}}}}
       });
     }
 
