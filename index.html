@@ -163,25 +163,28 @@
         <div id="heatmapContainer" class="overflow-x-auto"></div>
       </div>
 
-      <div class="card rounded-xl p-5">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+      <div class="accordion-section card rounded-xl p-5">
+        <button onclick="toggleAccordion('invoices')" class="accordion-toggle flex items-center justify-between gap-3 text-left w-full">
           <div>
             <h2 class="text-sm font-semibold t2">Detalle de Facturas</h2>
             <p id="ventasCount" class="t3 text-xs mt-0.5"></p>
           </div>
-          <div class="flex gap-2 print-hide">
+          <span id="invoicesChevron" class="text-sm">▲</span>
+        </button>
+        <div id="invoicesContent" class="accordion-content mt-4">
+          <div class="flex justify-end gap-2 mb-3 print-hide">
             <button onclick="printVentas()" class="export-btn px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition">🖨️ Imprimir</button>
             <button onclick="exportVentasCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
           </div>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead><tr class="t2 border-b text-left" style="border-color:var(--border)">
-              <th class="pb-2 pr-4">N° Doc</th><th class="pb-2 pr-4">Cliente</th>
-              <th class="pb-2 pr-4">Fecha</th><th class="pb-2 pr-4 text-right">Total (CLP)</th><th class="pb-2">Estado</th>
-            </tr></thead>
-            <tbody id="invoicesTable"></tbody>
-          </table>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="t2 border-b text-left" style="border-color:var(--border)">
+                <th class="pb-2 pr-4">N° Doc</th><th class="pb-2 pr-4">Cliente</th>
+                <th class="pb-2 pr-4">Fecha</th><th class="pb-2 pr-4 text-right">Total (CLP)</th><th class="pb-2">Estado</th>
+              </tr></thead>
+              <tbody id="invoicesTable"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -323,7 +326,7 @@
     let sellers=[], sellerMap={}, companies=[], loadingCount=0;
     let presentationTimer=null;
     let presentationActive=false;
-    const accordionState={orders:false,deliveries:false};
+    const accordionState={invoices:true,orders:false,deliveries:false};
     const monthFmt=new Intl.DateTimeFormat('es-CL',{month:'short'});
 
     function toggleTheme(){
