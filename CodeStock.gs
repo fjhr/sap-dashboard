@@ -26,6 +26,9 @@ var STOCK_MAX_PAGINAS = 100;     // tope de seguridad (100 pag x 100 items = 10.
 // Override de credenciales por-request (se setea en doGet, stateless entre requests)
 var currentCredOverride_ = null;
 
+// Errores no fatales de fetchs a SAP durante el request (se incluyen como warnings en la respuesta)
+var fetchWarnings_ = [];
+
 function doGet(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
@@ -99,6 +102,7 @@ function fetchAndCache(daysBackOverride, cacheKey, companyDb) {
 
 function fetchSAPData(daysBackOverride, companyDb) {
   var props = PropertiesService.getScriptProperties();
+  fetchWarnings_ = [];
   var session = openSAPSession_(companyDb);
 
   var daysBack = daysBackOverride || parseInt(props.getProperty('SAP_DAYS_BACK') || '5', 10);
@@ -119,7 +123,7 @@ function fetchSAPData(daysBackOverride, companyDb) {
    closeSAPSession_(session);
   }
 
-  return {
+  var result = {
    lastUpdated: new Date().toISOString(),
     currency: 'CLP',
     dateFrom: dateFilter,
@@ -127,6 +131,8 @@ function fetchSAPData(daysBackOverride, companyDb) {
     orders: orders,
     deliveries: deliveries
   };
+  if (fetchWarnings_.length) result.warnings = fetchWarnings_;
+  return result;
 }
 
 function fetchAll(baseUrl, endpoint, dateFilter, fields, headers) {
@@ -145,6 +151,7 @@ function fetchAll(baseUrl, endpoint, dateFilter, fields, headers) {
 
   if (resp.getResponseCode() !== 200) {
     Logger.log('Error fetching ' + endpoint + ': ' + resp.getContentText());
+    fetchWarnings_.push(endpoint + ' HTTP ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
     return [];
   }
 
