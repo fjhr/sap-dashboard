@@ -482,16 +482,22 @@
       return url.toString();
     }
     function getSalesUrl(){
-      return buildUrl(APPS_SCRIPT_URL,{daysBack:DAYS_BACK,company:getSelectedCompany(),...getCredParams()});
+      const creds = getCredParams();
+      const bust = Object.keys(creds).length ? {_t:Date.now()} : {};
+      return buildUrl(APPS_SCRIPT_URL,{daysBack:DAYS_BACK,company:getSelectedCompany(),...creds,...bust});
     }
     function getSellersUrl(){
-      return buildUrl(APPS_SCRIPT_URL,{action:'sellers',company:getSelectedCompany(),...getCredParams()});
+      const creds = getCredParams();
+      const bust = Object.keys(creds).length ? {_t:Date.now()} : {};
+      return buildUrl(APPS_SCRIPT_URL,{action:'sellers',company:getSelectedCompany(),...creds,...bust});
     }
     function getCompaniesUrl(){
       return buildUrl(APPS_SCRIPT_URL,{action:'companies'});
     }
     function getStockUrl(force){
-      return buildUrl(STOCK_URL,{company:getSelectedCompany(),refresh:force?'1':'',...getCredParams()});
+      const creds = getCredParams();
+      const bust = Object.keys(creds).length ? {_t:Date.now()} : {};
+      return buildUrl(STOCK_URL,{company:getSelectedCompany(),refresh:force?'1':'',...creds,...bust});
     }
 
     function setLoading(isLoading){

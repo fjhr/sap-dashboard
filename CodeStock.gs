@@ -70,8 +70,10 @@ function doGet(e) {
 
 function fetchAndCache(daysBackOverride, cacheKey, companyDb) {
   var data = fetchSAPData(daysBackOverride, companyDb);
-  var key = cacheKey || CACHE_KEY;
-  CacheService.getScriptCache().put(key, JSON.stringify(data), CACHE_TTL);
+  // Solo guardar en caché si hay una key válida (no guardar cuando hay credenciales custom)
+  if (cacheKey) {
+    CacheService.getScriptCache().put(cacheKey, JSON.stringify(data), CACHE_TTL);
+  }
   return data;
 }
 
@@ -131,10 +133,11 @@ function fetchAll(baseUrl, endpoint, dateFilter, fields, headers) {
 
 function serveSellers_(companyConfig) {
   var cache = CacheService.getScriptCache();
-  var cacheKey = buildCacheKey_(SELLERS_CACHE_KEY, companyConfig.id);
-  var cached = cache.get(cacheKey);
+  // Sin caché cuando hay credenciales custom (cada usuario puede apuntar a otro servidor)
+  var cacheKey = currentCredOverride_ ? null : buildCacheKey_(SELLERS_CACHE_KEY, companyConfig.id);
+  var cached = cacheKey ? cache.get(cacheKey) : null;
   var data = cached ? JSON.parse(cached) : fetchSellersData_(companyConfig.db);
-  if (!cached) cache.put(cacheKey, JSON.stringify(data), CACHE_TTL);
+  if (!cached && cacheKey) cache.put(cacheKey, JSON.stringify(data), CACHE_TTL);
   return jsonResponse_({ sellers: data });
 }
 
@@ -168,12 +171,13 @@ function fetchSellersData_(companyDb) {
 // ============================================================
 
 function serveStock_(e, companyConfig) {
-  var forzar = e && e.parameter && e.parameter.refresh === '1';
-  var cacheKey = buildCacheKey_(STOCK_CACHE_KEY, companyConfig.id);
+  // Siempre forzar lectura fresca cuando hay credenciales custom
+  var forzar = currentCredOverride_ || (e && e.parameter && e.parameter.refresh === '1');
+  var cacheKey = currentCredOverride_ ? null : buildCacheKey_(STOCK_CACHE_KEY, companyConfig.id);
   var data = forzar ? null : leerStockCache_(cacheKey);
   if (!data) {
     data = fetchStockData(companyConfig.db);
-    guardarStockCache_(data, cacheKey);
+    if (cacheKey) guardarStockCache_(data, cacheKey);
   }
   return jsonResponse_(data);
 }
