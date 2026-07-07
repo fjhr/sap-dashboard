@@ -6,7 +6,10 @@
 
 1. Ve a [script.google.com](https://script.google.com) y crea un nuevo proyecto.
 2. Nómbralo **SAP B1 Dashboard**.
-3. Copia el contenido de `Code.gs` de este repositorio al editor.
+3. Copia el contenido de **`CodeStock.gs`** de este repositorio al editor (⚠️ NO uses `Code.gs`, está deprecado).
+
+> 💡 Alternativa CLI: con [clasp](https://github.com/google/clasp) (`npm i -g @google/clasp`, `clasp login`)
+> puedes subir y desplegar sin tocar el editor — ver "Actualizar el script" más abajo.
 
 ### Configurar credenciales (Script Properties)
 
@@ -25,6 +28,8 @@ En el editor de Apps Script:
 | SAP_USER        | Integrador                                         |
 | SAP_PASSWORD    | (tu contraseña de SAP)                             |
 | SAP_LANGUAGE    | 25                                                 |
+| SAP_DAYS_BACK   | 5 (días de historial por defecto)                  |
+| SAP_COMPANIES   | (opcional) `[{"id":"ID","name":"Nombre","db":"DB"}]` |
 
 ### Desplegar como Web App
 
@@ -34,6 +39,21 @@ En el editor de Apps Script:
    - Execute as: **Me**
    - Who has access: **Anyone**
 4. Click **Deploy** y copia la URL resultante (`https://script.google.com/macros/s/.../exec`)
+
+### Actualizar el script (tras cada cambio en CodeStock.gs)
+
+El deployment sirve una **versión congelada** del código: subir cambios no basta, hay que crear
+una nueva versión del **mismo** deployment (para no cambiar la URL):
+
+```bash
+clasp push -f
+clasp deployments                        # anota el ID del deployment (el de la URL /macros/s/<ID>/exec)
+clasp deploy -i <deployment-id> -d "descripción del cambio"
+```
+
+O manualmente: `Deploy → Manage Deployments → ✏️ → New Version → Deploy`.
+
+Verifica que la nueva versión está viva con `GET <url>/exec?action=ping`.
 
 ### Crear trigger de actualización
 
@@ -47,11 +67,12 @@ En el editor de Apps Script:
 ## 2. HTML (GitHub Pages)
 
 1. Abre `index.html` en este repositorio
-2. Busca la línea:
+2. Busca las líneas:
    ```js
-   const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL';
+   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/TU_ID/exec';
+   const STOCK_URL       = 'https://script.google.com/macros/s/TU_ID/exec';
    ```
-3. Reemplaza `YOUR_APPS_SCRIPT_WEB_APP_URL` con la URL obtenida en el paso anterior
+3. Reemplaza ambas con la URL obtenida en el paso anterior (es el mismo deployment)
 4. Haz commit y push:
    ```bash
    git add index.html
@@ -65,7 +86,7 @@ En el editor de Apps Script:
 
 1. Ve a `https://github.com/fjhr/sap-dashboard/settings/pages`
 2. Source: **Deploy from branch**
-3. Branch: `main` / `/ (root)`
+3. Branch: `master` / `/ (root)`
 4. Click **Save**
 5. En ~1 minuto, tu dashboard estará en:
    **https://fjhr.github.io/sap-dashboard**
@@ -82,8 +103,15 @@ En el editor de Apps Script:
 
 ```
 sap-dashboard/
-├── index.html    ← Dashboard (GitHub Pages)
-├── Code.gs       ← Google Apps Script (copiar al editor)
+├── index.html      ← Dashboard (GitHub Pages)
+├── CodeStock.gs    ← Google Apps Script ACTIVO (subir con clasp o copiar al editor)
+├── Code.gs         ← Versión inicial (deprecada — no usar)
+├── .clasp.json     ← Config de clasp (deploy automatizado)
+├── manifest.json   ← PWA manifest
+├── sw.js           ← Service Worker
 ├── README.md
-└── SETUP.md      ← Esta guía
+└── SETUP.md        ← Esta guía
 ```
+
+> 💡 Si el dashboard no refleja un cambio recién publicado en `index.html`, el Service Worker
+> puede estar sirviendo la versión cacheada: recarga con **Ctrl+Shift+R**.

@@ -15,6 +15,7 @@ Dashboard web de **Ventas** y **Stock** para SAP Business One. Publicado en GitH
 | KPIs con comparativa | Total facturado, Facturas, Pedidos, Entregas — `▲▼ %` vs período anterior |
 | Alerta meta diaria | KPI rojo si el promedio diario cae bajo el umbral configurado |
 | Filtro de fecha | Rango desde/hasta — todas las vistas se actualizan en tiempo real |
+| **Rango histórico** | Si el rango de fechas excede lo descargado, se recarga automáticamente desde SAP (hasta ~20 años atrás, máx 1000 docs por tipo) |
 | Filtro por cliente | Búsqueda por nombre en tiempo real |
 | Filtro por vendedor | Dropdown poblado desde SAP (`SalesPersonCode`) |
 | Drill-down en gráfica | Click en una barra → filtra la tabla al día seleccionado |
@@ -62,16 +63,17 @@ SAP Business One (Service Layer REST / OData v1)
           ▼
  Google Apps Script — CodeStock.gs (24 funciones)
   ├─ GET /exec                          → ventas (caché 6h)
-  ├─ GET /exec?daysBack=14              → ventas con más historial
+  ├─ GET /exec?daysBack=N&dateTo=fecha  → ventas de rango histórico (paginado)
   ├─ GET /exec?company=ID              → ventas de empresa específica
   ├─ GET /exec?action=sellers           → lista de vendedores SAP
   ├─ GET /exec?action=companies         → lista de empresas configuradas
   ├─ GET /exec?action=stock             → stock por artículo/bodega (caché 6h)
-  └─ GET /exec?action=stock&refresh=1  → stock forzando lectura fresca
+  ├─ GET /exec?action=stock&refresh=1  → stock forzando lectura fresca
+  └─ GET /exec?action=ping              → diagnóstico (eco de params recibidos)
           │
           │  fetch() al cargar / al cambiar filtros/empresa
           ▼
-  GitHub Pages — index.html (850 líneas, 58 funciones JS)
+  GitHub Pages — index.html (~960 líneas)
   ├─ Header: empresa selector + dark/light + 📺 presentación + refresh
   ├─ Tab Ventas: filtros + KPIs + charts + mapa calor + drill-down + tablas + acordeón + print
   ├─ Tab Stock: filtros + KPIs + chart + tabla + alertas
@@ -155,21 +157,27 @@ const STOCK_URL       = 'https://script.google.com/macros/s/TU_ID/exec?action=st
 | Endpoint | Descripción |
 |----------|-------------|
 | `GET /exec?daysBack=14` | Ventas con rango personalizado (caché 6h) |
+| `GET /exec?daysBack=N&dateTo=yyyy-mm-dd` | Ventas de rango histórico acotado — pagina hasta 1000 docs por tipo (los más recientes del rango) |
 | `GET /exec?company=ID` | Ventas de empresa específica |
 | `GET /exec?action=sellers` | Lista de vendedores SAP |
 | `GET /exec?action=companies` | Lista de empresas configuradas (sin contraseñas) |
 | `GET /exec?action=stock` | Stock por artículo y bodega (caché 6h) |
 | `GET /exec?action=stock&refresh=1` | Stock forzando lectura fresca |
+| `GET /exec?action=ping` | Diagnóstico: eco de los parámetros recibidos (sin credenciales en claro) |
 | `GET /exec?sapUrl=...&sapDb=...&sapUser=...&sapPass=...` | **Override de credenciales SAP** — útil para multi-servidor; desactiva caché automáticamente |
 
 **Respuesta ventas:**
 ```json
 {
-  "lastUpdated": "2026-07-06T21:00:00Z", "currency": "CLP", "dateFrom": "2026-06-29",
+  "lastUpdated": "2026-07-06T21:00:00Z", "currency": "CLP",
+  "dateFrom": "2026-06-29", "dateTo": null,
   "invoices": [{ "DocNum": 1, "CardName": "Cliente", "DocDate": "...", "DocTotal": 1250000, "DocumentStatus": "bost_Open", "SalesPersonCode": 3 }],
-  "orders": [...], "deliveries": [...]
+  "orders": [...], "deliveries": [...],
+  "warnings": ["/Orders HTTP 400: ..."]
 }
 ```
+> `dateTo` refleja el límite superior pedido (`null` = hoy). `warnings` solo aparece si alguna
+> consulta OData falló — los errores no se tragan silenciosamente.
 
 **Respuesta stock:**
 ```json
@@ -207,8 +215,12 @@ function clearStockCache() {
 
 | Error | Causa | Solución |
 |-------|-------|----------|
-| Arrays vacíos | Fechas no coinciden con datos SAP | Aumentar `SAP_DAYS_BACK` |
-| `SAP Login failed` | Credenciales incorrectas | Verificar Script Properties o usar modal ⚙️ |
+| Arrays vacíos, sin `warnings` | No hay documentos en el rango consultado | Ampliar el filtro "Desde" (recarga histórica automática) |
+| Arrays vacíos, con `warnings` | Alguna consulta OData falló | Revisar el detalle HTTP en `warnings` |
+| `SAP Login failed (HTTP xxx)` | Credenciales incorrectas o URL sin `/b1s/v1` | Verificar Script Properties o modal ⚙️; el mensaje incluye la respuesta de SAP |
+| Funciona en Postman pero no en el dashboard | Certificado autofirmado o servidor SAP no accesible desde internet | Todo fetch lleva `validateHttpsCertificates:false`; Apps Script llama desde IPs de Google (no sirve VPN local) |
+| Cambios en `CodeStock.gs` no se reflejan | Deployment sirviendo versión vieja | `clasp push -f` + `clasp deploy -i <deployment-id>`; verificar con `?action=ping` |
+| Cambios en `index.html` no se reflejan | Service Worker sirviendo caché | Ctrl+Shift+R o cerrar todas las pestañas del dashboard |
 | Dashboard en blanco | URL de Apps Script incorrecta | Verificar `APPS_SCRIPT_URL` / `STOCK_URL` |
 | Vendedores vacíos | `/SalesPersons` sin datos | Normal en DBs de prueba; filtro se oculta |
 | Empresas no aparecen | `SAP_COMPANIES` no configurada | Agregar Script Property con JSON |
