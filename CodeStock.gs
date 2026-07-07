@@ -27,54 +27,61 @@ var STOCK_MAX_PAGINAS = 100;     // tope de seguridad (100 pag x 100 items = 10.
 var currentCredOverride_ = null;
 
 function doGet(e) {
-  var params = (e && e.parameter) ? e.parameter : {};
-  var action = params.action;
+  try {
+    var params = (e && e.parameter) ? e.parameter : {};
+    var action = params.action;
 
-  // Endpoint de diagnóstico — devuelve qué recibió el script (sin credenciales en claro)
-  if (action === 'ping') {
-    return jsonResponse_({
-      ok: true,
-      receivedParams: Object.keys(params),
-      hasCredOverride: !!(params.sapUrl || params.sapUser || params.sapPass || params.sapDb),
-      sapUrlReceived: params.sapUrl ? params.sapUrl.substring(0, 30) + '...' : null,
-      sapDbReceived:  params.sapDb  || null,
-      sapUserReceived: params.sapUser ? '***' : null,
-      timestamp: new Date().toISOString()
-    });
+    // Endpoint de diagnóstico — devuelve qué recibió el script (sin credenciales en claro)
+    if (action === 'ping') {
+      return jsonResponse_({
+        ok: true,
+        receivedParams: Object.keys(params),
+        hasCredOverride: !!(params.sapUrl || params.sapUser || params.sapPass || params.sapDb),
+        sapUrlReceived: params.sapUrl ? params.sapUrl.substring(0, 30) + '...' : null,
+        sapDbReceived:  params.sapDb  || null,
+        sapUserReceived: params.sapUser ? '***' : null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Credenciales custom desde el dashboard (override Script Properties)
+    if (params.sapUrl || params.sapUser || params.sapPass || params.sapDb) {
+      currentCredOverride_ = {
+        sapUrl:  params.sapUrl  || null,
+        sapUser: params.sapUser || null,
+        sapPass: params.sapPass || null,
+        sapDb:   params.sapDb   || null
+      };
+    } else {
+      currentCredOverride_ = null;
+    }
+
+    if (action === 'companies') return jsonResponse_({ companies: getPublicCompanies_() });
+
+    var companyConfig = getCompanyConfig_(params);
+    // Si hay override de companyDb, tomarlo directamente
+    if (currentCredOverride_ && currentCredOverride_.sapDb) {
+      companyConfig = { id: currentCredOverride_.sapDb, db: currentCredOverride_.sapDb };
+    }
+
+    if (action === 'sellers') return serveSellers_(companyConfig);
+    if (action === 'stock') return serveStock_(e, companyConfig);
+
+    var daysBack = params.daysBack ? parseInt(params.daysBack, 10) : null;
+    // Con credenciales custom no usamos caché (cada usuario puede tener creds distintas)
+    var cacheKey = currentCredOverride_ ? null : buildCacheKey_(CACHE_KEY, companyConfig.id, daysBack);
+
+    var cache = CacheService.getScriptCache();
+    var cached = cacheKey ? cache.get(cacheKey) : null;
+    var data = cached ? JSON.parse(cached) : fetchAndCache(daysBack, cacheKey, companyConfig.db);
+
+    return jsonResponse_(data);
+
+  } catch (err) {
+    // Siempre retornar JSON válido para que CORS funcione aunque haya error
+    Logger.log('doGet ERROR: ' + err.message + '\n' + err.stack);
+    return jsonResponse_({ error: true, message: err.message, timestamp: new Date().toISOString() });
   }
-
-  // Credenciales custom desde el dashboard (override Script Properties)
-  if (params.sapUrl || params.sapUser || params.sapPass || params.sapDb) {
-    currentCredOverride_ = {
-      sapUrl:  params.sapUrl  || null,
-      sapUser: params.sapUser || null,
-      sapPass: params.sapPass || null,
-      sapDb:   params.sapDb   || null
-    };
-  } else {
-    currentCredOverride_ = null;
-  }
-
-  if (action === 'companies') return jsonResponse_({ companies: getPublicCompanies_() });
-
-  var companyConfig = getCompanyConfig_(params);
-  // Si hay override de companyDb, tomarlo directamente
-  if (currentCredOverride_ && currentCredOverride_.sapDb) {
-    companyConfig = { id: currentCredOverride_.sapDb, db: currentCredOverride_.sapDb };
-  }
-
-  if (action === 'sellers') return serveSellers_(companyConfig);
-  if (action === 'stock') return serveStock_(e, companyConfig);
-
-  var daysBack = params.daysBack ? parseInt(params.daysBack, 10) : null;
-  // Con credenciales custom no usamos caché (cada usuario puede tener creds distintas)
-  var cacheKey = currentCredOverride_ ? null : buildCacheKey_(CACHE_KEY, companyConfig.id, daysBack);
-
-  var cache = CacheService.getScriptCache();
-  var cached = cacheKey ? cache.get(cacheKey) : null;
-  var data = cached ? JSON.parse(cached) : fetchAndCache(daysBack, cacheKey, companyConfig.db);
-
-  return jsonResponse_(data);
 }
 
 // ============================================================

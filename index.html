@@ -545,6 +545,12 @@
         ]);
         if(!salesRes.ok)throw new Error('HTTP '+salesRes.status);
         rawData=await salesRes.json();
+        // Si Apps Script retornó un error JSON (ej: SAP login fallido)
+        if(rawData.error){
+          const msg = rawData.message||'Error en Apps Script';
+          showError('⚙️ Error SAP: '+msg+' — Verifica las credenciales en ⚙️');
+          return;
+        }
         if(resetDates||!document.getElementById('filtroDesde').value||!document.getElementById('filtroHasta').value)setDefaultFilters();
         await populateSellers(sellersRes);
         applyFilters();
