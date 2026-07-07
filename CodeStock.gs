@@ -290,21 +290,23 @@ function fetchBodegas_(baseUrl, headers) {
 }
 
 function fetchArticulosStock_(baseUrl, headers) {
-  var filtro = STOCK_SOLO_CON_STOCK ? '&$filter=QuantityOnStock gt 0' : '';
+  var filtro = STOCK_SOLO_CON_STOCK ? '&$filter=' + encodeURIComponent('QuantityOnStock gt 0') : '';
 
-  // Paginación explícita con $top/$skip (ver comentario en fetchAll): la colección
-  // ItemWarehouseInfoCollection es pesada y sin paginar puede superar los 50MB
-  var pageSize = 100;
+  // Paginación explícita con $top/$skip (ver comentario en fetchAll) y tamaño de página
+  // ADAPTATIVO: ItemWarehouseInfoCollection trae una entrada por CADA bodega del sistema
+  // (~40 campos c/u); en bases con muchas bodegas una página de 50 artículos puede superar
+  // los ~50MB de UrlFetchApp (JSON truncado). Si la página no parsea, se reduce y reintenta.
+  var pageSize = 50;
   var articulos = [];
+  var skip = 0;
   var paginas = 0;
-  var recibidos = pageSize;
 
-  while (recibidos === pageSize && paginas < STOCK_MAX_PAGINAS) {
+  while (paginas < STOCK_MAX_PAGINAS) {
     var url = baseUrl + '/Items?$select=ItemCode,ItemName,QuantityOnStock,ItemWarehouseInfoCollection'
       + filtro
       + '&$orderby=ItemCode'
       + '&$top=' + pageSize
-      + '&$skip=' + (paginas * pageSize);
+      + '&$skip=' + skip;
 
     var resp = UrlFetchApp.fetch(url, {
       method: 'get',
@@ -324,8 +326,12 @@ function fetchArticulosStock_(baseUrl, headers) {
       json = JSON.parse(resp.getContentText());
     } catch (e) {
       // Página truncada por el límite de ~50MB de UrlFetchApp
-      Logger.log('Respuesta /Items no parseable (pagina ' + paginas + '): ' + e.message);
-      fetchWarnings_.push('/Items página ' + paginas + ' no parseable (respuesta >50MB?): ' + e.message);
+      if (pageSize > 1) {
+        pageSize = Math.max(1, Math.floor(pageSize / 10));
+        Logger.log('Página /Items truncada; reintentando con pageSize=' + pageSize);
+        continue; // reintenta el mismo skip con página más chica
+      }
+      fetchWarnings_.push('/Items: la respuesta supera 50MB incluso pidiendo 1 artículo — el servidor ignora $top o el artículo es gigante: ' + e.message);
       break;
     }
 
@@ -343,8 +349,13 @@ function fetchArticulosStock_(baseUrl, headers) {
       });
     });
 
-    recibidos = pagina.length;
+    skip += pagina.length;
     paginas++;
+    if (pagina.length < pageSize) break; // última página
+  }
+
+  if (paginas >= STOCK_MAX_PAGINAS) {
+    fetchWarnings_.push('/Items: resultado parcial (' + articulos.length + ' artículos) — se alcanzó el tope de ' + STOCK_MAX_PAGINAS + ' páginas');
   }
 
   return articulos;
