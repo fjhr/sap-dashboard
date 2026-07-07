@@ -47,13 +47,17 @@
     .icon{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:inline-block;vertical-align:-3px;flex:none;}
     .icon-sm{width:14px;height:14px;}
     .icon-lg{width:20px;height:20px;}
+    .chip{display:inline-flex;align-items:center;gap:3px;font-size:.65rem;font-weight:600;padding:2px 8px;border-radius:9999px;}
+    .chip-up{background:var(--chip-up);color:var(--up);}
+    .chip-dn{background:var(--chip-dn);color:var(--dn);}
+    .chip-ne{background:var(--border);color:var(--text2);}
     .chev{transition:transform .2s;}
     .chev.open{transform:rotate(180deg);}
     .tab-a{background:var(--primary-btn);color:#fff;}
     .tab-i{color:var(--text2);}
     .tab-i:hover{color:var(--text);background:var(--card);}
-    .alert-card{background:rgba(239,68,68,.1)!important;border-color:rgba(239,68,68,.4)!important;}
-    .badge-low{background:#ef4444;color:#fff;font-size:.65rem;padding:1px 5px;border-radius:9999px;display:inline-block;}
+    .alert-card{background:var(--chip-dn)!important;border-color:var(--dn)!important;}
+    .badge-low{background:var(--dn);color:#fff;font-size:.65rem;padding:1px 5px;border-radius:9999px;display:inline-block;}
     .up{color:var(--up)}.dn{color:var(--dn)}.ne{color:var(--text2)}
     canvas{max-height:320px;}
     .spinner-inline{display:inline-block;width:.85rem;height:.85rem;border:2px solid currentColor;border-top-color:transparent;border-radius:9999px;animation:spin .8s linear infinite;}
@@ -701,11 +705,12 @@
     }
 
     function trend(curr,prev){
-      if(!prev)return{cls:'ne',txt:'— vs período anterior'};
+      if(!prev)return{cls:'chip-ne',html:'— vs período anterior'};
       const p=((curr-prev)/prev*100);
-      return{cls:p>=0?'up':'dn',txt:`${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1)}% vs período anterior`};
+      const icon=p>=0?'#i-trend-up':'#i-trend-down';
+      return{cls:p>=0?'chip-up':'chip-dn',html:`<svg class="icon" style="width:11px;height:11px"><use href="${icon}"/></svg>${Math.abs(p).toFixed(1)}% vs anterior`};
     }
-    function setTrend(id,c,p){const t=trend(c,p);const el=document.getElementById(id);el.textContent=t.txt;el.className='text-xs mt-1 '+t.cls;}
+    function setTrend(id,c,p){const t=trend(c,p);const el=document.getElementById(id);el.innerHTML=`<span class="chip ${t.cls}">${t.html}</span>`;el.className='text-xs mt-1';}
 
     function renderKPIs(inv,ord,del,current,previous,metaDia){
       const tot=inv.reduce((s,d)=>s+(d.DocTotal||0),0);
@@ -891,7 +896,7 @@
           <td class="py-2 pr-4 text-xs max-w-xs truncate">${esc(d.CardName||d.CardCode||'—')}</td>
           <td class="py-2 pr-4 text-xs">${(d.DocDate||'').substring(0,10)}</td>
           <td class="py-2 pr-4 text-xs text-right font-mono">${fmt.format(d.DocTotal||0)}</td>
-          <td class="py-2 text-xs"><span class="px-2 py-0.5 rounded-full text-xs ${d.DocumentStatus==='bost_Close'?'bg-slate-600 text-slate-300':'bg-emerald-900/50 text-emerald-300'}">${getStatusLabel(d.DocumentStatus)}</span></td>
+          <td class="py-2 text-xs"><span class="chip ${d.DocumentStatus==='bost_Close'?'chip-ne':'chip-up'}">${getStatusLabel(d.DocumentStatus)}</span></td>
         </tr>`).join('');
     }
     function toggleAccordion(type){
