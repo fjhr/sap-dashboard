@@ -188,7 +188,7 @@
       <p class="mt-3 t2">Consultando SAP...</p>
     </div>
     <div id="errorState" class="hidden text-center py-20">
-      <p class="text-red-400 text-lg">⚠️ Error al cargar datos</p>
+      <p class="text-lg flex items-center justify-center gap-2" style="color:var(--dn)"><svg class="icon icon-lg"><use href="#i-alert"/></svg>Error al cargar datos</p>
       <p id="errorMsg" class="t3 text-sm mt-2"></p>
     </div>
 
@@ -251,12 +251,12 @@
             <h2 class="text-sm font-semibold t2">Detalle de Facturas</h2>
             <p id="ventasCount" class="t3 text-xs mt-0.5"></p>
           </div>
-          <span id="invoicesChevron" class="text-sm">▲</span>
+          <svg id="invoicesChevron" class="icon chev open"><use href="#i-chevron"/></svg>
         </button>
         <div id="invoicesContent" class="accordion-content mt-4">
           <div class="flex justify-end gap-2 mb-3 print-hide">
-            <button onclick="printVentas()" class="export-btn px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition">🖨️ Imprimir</button>
-            <button onclick="exportVentasCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+            <button onclick="printVentas()" class="export-btn px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-print"/></svg> Imprimir</button>
+            <button onclick="exportVentasCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -276,11 +276,11 @@
             <h2 class="text-sm font-semibold t2">Pedidos</h2>
             <p id="ordersCount" class="t3 text-xs mt-0.5">0 documentos</p>
           </div>
-          <span id="ordersChevron" class="text-sm">▼</span>
+          <svg id="ordersChevron" class="icon chev"><use href="#i-chevron"/></svg>
         </button>
         <div id="ordersContent" class="accordion-content hidden mt-4">
           <div class="flex justify-end mb-3 print-hide">
-            <button onclick="exportOrdersCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+            <button onclick="exportOrdersCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -300,11 +300,11 @@
             <h2 class="text-sm font-semibold t2">Entregas</h2>
             <p id="deliveriesCount" class="t3 text-xs mt-0.5">0 documentos</p>
           </div>
-          <span id="deliveriesChevron" class="text-sm">▼</span>
+          <svg id="deliveriesChevron" class="icon chev"><use href="#i-chevron"/></svg>
         </button>
         <div id="deliveriesContent" class="accordion-content hidden mt-4">
           <div class="flex justify-end mb-3 print-hide">
-            <button onclick="exportDeliveriesCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+            <button onclick="exportDeliveriesCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -339,7 +339,7 @@
       <p class="t3 text-xs mt-1">La primera carga puede tardar varios minutos en bases con muchas bodegas</p>
     </div>
     <div id="stockError" class="hidden text-center py-20">
-      <p class="text-red-400 text-lg">⚠️ Error al cargar stock</p>
+      <p class="text-lg flex items-center justify-center gap-2" style="color:var(--dn)"><svg class="icon icon-lg"><use href="#i-alert"/></svg>Error al cargar stock</p>
       <p id="stockErrorMsg" class="t3 text-sm mt-2"></p>
     </div>
 
@@ -359,7 +359,7 @@
           <canvas id="stockChart"></canvas>
         </div>
         <div class="card rounded-xl p-5">
-          <h2 class="text-sm font-semibold t2 mb-4">🔴 Alertas de Stock Bajo</h2>
+          <h2 class="text-sm font-semibold t2 mb-4 flex items-center gap-2"><svg class="icon icon-sm" style="color:var(--dn)"><use href="#i-alert"/></svg>Alertas de Stock Bajo</h2>
           <div id="stockAlerts" class="space-y-2 max-h-72 overflow-y-auto text-sm">
             <p class="t3 text-xs">Define un stock mínimo en el filtro para ver alertas.</p>
           </div>
@@ -372,7 +372,7 @@
             <h2 class="text-sm font-semibold t2">Stock por Artículo y Bodega</h2>
             <p id="stockCount" class="t3 text-xs mt-0.5"></p>
           </div>
-          <button onclick="exportStockCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition print-hide">⬇ Exportar CSV</button>
+          <button onclick="exportStockCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition print-hide"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -388,7 +388,7 @@
     <p class="t2 text-xs mb-2">Intervalo de cambio</p>
     <input type="range" id="slideInterval" min="10" max="60" value="30" step="5" class="w-32" oninput="updateInterval(this.value)"/>
     <p id="intervalLabel" class="t3 text-xs mt-1 text-center">30 seg</p>
-    <button onclick="togglePresentation()" class="mt-3 w-full px-2 py-1 text-xs bg-red-700 hover:bg-red-600 text-white rounded-lg">⏹ Salir</button>
+    <button onclick="togglePresentation()" class="mt-3 w-full px-2 py-1 text-xs bg-red-700 hover:bg-red-600 text-white rounded-lg"><svg class="icon icon-sm"><use href="#i-stop"/></svg> Salir</button>
   </div>
 
   <script>
@@ -419,7 +419,7 @@
     const monthFmt=new Intl.DateTimeFormat('es-CL',{month:'short'});
 
     // =========================================================
-    // CONFIGURACIÓN SAP — Modal ⚙️
+    // CONFIGURACIÓN SAP — Modal
     // =========================================================
     const SAP_CRED_KEY = 'sap_credentials';
 
@@ -596,7 +596,7 @@
         // Si Apps Script retornó un error JSON (ej: SAP login fallido)
         if(rawData.error){
           const msg = rawData.message||'Error en Apps Script';
-          showError('⚙️ Error SAP: '+msg+' — Verifica las credenciales en ⚙️');
+          showError('Error SAP: '+msg+' — Verifica las credenciales en Configuración');
           return;
         }
         if(resetDates||!document.getElementById('filtroDesde').value||!document.getElementById('filtroHasta').value)setDefaultFilters();
@@ -900,7 +900,7 @@
     }
     function syncAccordion(type){
       document.getElementById(type+'Content').classList.toggle('hidden',!accordionState[type]);
-      document.getElementById(type+'Chevron').textContent=accordionState[type]?'▲':'▼';
+      document.getElementById(type+'Chevron').classList.toggle('open',accordionState[type]);
     }
     function printVentas(){
       accordionState.orders=true;accordionState.deliveries=true;
@@ -962,11 +962,11 @@
         if(!res.ok)throw new Error('HTTP '+res.status);
         stockData=await res.json();
         // Error JSON de Apps Script (ej: SAP login fallido) — no dejar la pestaña en blanco
-        if(stockData.error){const msg=stockData.message||'Error en Apps Script';stockData=null;throw new Error('⚙️ Error SAP: '+msg);}
+        if(stockData.error){const msg=stockData.message||'Error en Apps Script';stockData=null;throw new Error('Error SAP: '+msg);}
         // Warnings no fatales (alguna consulta OData falló): mostrarlos sobre el contenido
         const warnEl=document.getElementById('stockWarnings');
         if(stockData.warnings&&stockData.warnings.length){
-          warnEl.textContent='⚠️ SAP: '+stockData.warnings.join(' · ');
+          warnEl.textContent='SAP: '+stockData.warnings.join(' · ');
           warnEl.classList.remove('hidden');
         }else{
           warnEl.classList.add('hidden');
