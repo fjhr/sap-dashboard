@@ -1,6 +1,6 @@
 // SAP B1 Dashboard - Service Worker
 // Subir la versión del cache con cada cambio en index.html/sw.js fuerza la actualización
-const CACHE_NAME = 'sap-dashboard-v2';
+const CACHE_NAME = 'sap-dashboard-v3'; // v3: manifest con iconos PNG (el manifest está precacheado)
 const STATIC_ASSETS = [
   '/sap-dashboard/',
   '/sap-dashboard/index.html',
