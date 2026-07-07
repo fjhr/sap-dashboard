@@ -107,7 +107,7 @@
   <header class="mb-6">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
       <div>
-        <h1 class="text-2xl md:text-3xl font-bold">📊 Dashboard SAP B1</h1>
+        <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-2"><svg class="icon icon-lg" style="color:var(--primary)"><use href="#i-logo"/></svg>Dashboard SAP B1</h1>
         <p id="subtitle" class="t2 text-sm mt-1">Ventas · Últimos 14 días</p>
       </div>
       <div class="flex items-center gap-2 flex-wrap header-actions">
@@ -115,10 +115,10 @@
         <div id="selectorEmpresaWrap" class="hidden">
           <select id="selectorEmpresa" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="changeCompany()"></select>
         </div>
-        <button onclick="toggleTheme()" id="btnTheme" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Cambiar tema">🌙</button>
-        <button onclick="togglePresentation()" id="btnPresentation" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Modo presentación">📺</button>
-        <button onclick="openSettings()" id="btnSettings" class="relative px-3 py-1.5 text-sm rounded-lg card transition" title="Configurar conexión SAP">⚙️<span id="settingsDot" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-400 rounded-full border border-current"></span></button>
-        <button onclick="refreshActive()" id="btnRefresh" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">↻ Actualizar</button>
+        <button onclick="toggleTheme()" id="btnTheme" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Cambiar tema"><svg class="icon"><use id="themeIcon" href="#i-moon"/></svg></button>
+        <button onclick="togglePresentation()" id="btnPresentation" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Modo presentación"><svg class="icon"><use id="presIcon" href="#i-tv"/></svg></button>
+        <button onclick="openSettings()" id="btnSettings" class="relative px-3 py-1.5 text-sm rounded-lg card transition" title="Configurar conexión SAP"><svg class="icon"><use href="#i-settings"/></svg><span id="settingsDot" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-400 rounded-full border border-current"></span></button>
+        <button onclick="refreshActive()" id="btnRefresh" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-refresh"/></svg> Actualizar</button>
       </div>
     </div>
   </header>
@@ -127,11 +127,11 @@
   <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.6)">
     <div class="card rounded-2xl p-6 w-full max-w-md shadow-2xl">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-bold">⚙️ Conexión SAP Business One</h2>
-        <button onclick="closeSettings()" class="t3 hover:text-white text-lg leading-none">✕</button>
+        <h2 class="text-base font-bold flex items-center gap-2"><svg class="icon"><use href="#i-settings"/></svg>Conexión SAP Business One</h2>
+        <button onclick="closeSettings()" class="t3 hover:text-white text-lg leading-none"><svg class="icon"><use href="#i-x"/></svg></button>
       </div>
       <p class="text-xs text-orange-400 mb-4 p-2 rounded-lg" style="background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.3)">
-        ⚠️ Las credenciales se guardan en <strong>localStorage</strong> de este browser y se transmiten por <strong>HTTPS</strong>. Solo para uso interno/desarrollo.
+        <svg class="icon icon-sm" style="vertical-align:-2px"><use href="#i-alert"/></svg> Las credenciales se guardan en <strong>localStorage</strong> de este browser y se transmiten por <strong>HTTPS</strong>. Solo para uso interno/desarrollo.
       </p>
       <div class="space-y-3">
         <div>
@@ -150,13 +150,13 @@
           <label class="t3 text-xs block mb-1">Contraseña SAP</label>
           <div class="relative">
             <input id="cfgSapPass" type="password" placeholder="••••••••" class="inp rounded-lg px-3 py-2 text-sm w-full pr-10"/>
-            <button onclick="togglePassVisibility()" class="absolute right-2 top-1/2 -translate-y-1/2 t3 hover:text-white text-sm" title="Mostrar/ocultar">👁</button>
+            <button onclick="togglePassVisibility()" class="absolute right-2 top-1/2 -translate-y-1/2 t3 hover:text-white text-sm" title="Mostrar/ocultar"><svg class="icon icon-sm"><use href="#i-eye"/></svg></button>
           </div>
         </div>
       </div>
       <div class="flex gap-2 mt-5">
-        <button onclick="saveSettings()" class="flex-1 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition font-semibold">💾 Guardar y recargar</button>
-        <button onclick="clearSettings()" class="px-4 py-2 text-sm bg-red-800 hover:bg-red-700 text-white rounded-lg transition" title="Borrar credenciales custom y volver a Script Properties">🗑 Limpiar</button>
+        <button onclick="saveSettings()" class="flex-1 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition font-semibold"><svg class="icon icon-sm"><use href="#i-save"/></svg> Guardar y recargar</button>
+        <button onclick="clearSettings()" class="px-4 py-2 text-sm bg-red-800 hover:bg-red-700 text-white rounded-lg transition" title="Borrar credenciales custom y volver a Script Properties"><svg class="icon icon-sm"><use href="#i-trash"/></svg> Limpiar</button>
         <button onclick="closeSettings()" class="px-4 py-2 text-sm card rounded-lg transition t2">Cancelar</button>
       </div>
       <p class="t3 text-xs mt-3 text-center">Sin datos → se usan las credenciales de Google Script Properties</p>
@@ -164,8 +164,8 @@
   </div>
 
   <nav class="mb-6 flex gap-2">
-    <button id="btnTabVentas" onclick="switchTab('ventas')" class="tab-a px-4 py-2 rounded-lg text-sm font-semibold transition">💰 Ventas</button>
-    <button id="btnTabStock"  onclick="switchTab('stock')"  class="tab-i px-4 py-2 rounded-lg text-sm font-semibold transition">📦 Stock</button>
+    <button id="btnTabVentas" onclick="switchTab('ventas')" class="tab-a px-4 py-2 rounded-lg text-sm font-semibold transition"><svg class="icon icon-sm"><use href="#i-coins"/></svg> Ventas</button>
+    <button id="btnTabStock"  onclick="switchTab('stock')"  class="tab-i px-4 py-2 rounded-lg text-sm font-semibold transition"><svg class="icon icon-sm"><use href="#i-package"/></svg> Stock</button>
   </nav>
 
   <!-- ====== TAB VENTAS ====== -->
@@ -180,7 +180,7 @@
         </select>
       </div>
       <div><label class="t3 text-xs block mb-1">Meta diaria (CLP)</label><input type="number" id="metaDiaria" placeholder="0" class="inp rounded-lg px-3 py-1.5 text-sm w-36" oninput="applyFilters()"/></div>
-      <button onclick="clearVentasFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide">✕ Limpiar</button>
+      <button onclick="clearVentasFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide"><svg class="icon icon-sm"><use href="#i-x"/></svg> Limpiar</button>
     </div>
 
     <div id="loadingState" class="text-center py-20">
@@ -330,7 +330,7 @@
       </div>
       <div><label class="t3 text-xs block mb-1">Buscar artículo</label><input type="text" id="stockSearch" placeholder="Código o nombre..." class="inp rounded-lg px-3 py-1.5 text-sm w-52" oninput="applyStockFilters()"/></div>
       <div><label class="t3 text-xs block mb-1">Stock mínimo (alerta)</label><input type="number" id="minStock" placeholder="0" class="inp rounded-lg px-3 py-1.5 text-sm w-32" oninput="applyStockFilters()"/></div>
-      <button onclick="clearStockFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide">✕ Limpiar</button>
+      <button onclick="clearStockFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide"><svg class="icon icon-sm"><use href="#i-x"/></svg> Limpiar</button>
     </div>
 
     <div id="stockLoading" class="text-center py-20">
@@ -496,14 +496,14 @@
     // =========================================================
     function toggleTheme(){
       const l=document.body.classList.toggle('light');
-      document.getElementById('btnTheme').textContent=l?'☀️':'🌙';
+      document.getElementById('themeIcon').setAttribute('href',l?'#i-sun':'#i-moon');
       localStorage.setItem('theme',l?'light':'dark');
       if(rawData)renderHeatmap(filteredInvoices);
     }
     (function(){
       if(localStorage.getItem('theme')==='light'){
         document.body.classList.add('light');
-        document.getElementById('btnTheme').textContent='☀️';
+        document.getElementById('themeIcon').setAttribute('href','#i-sun');
       }
     })();
 
@@ -551,7 +551,7 @@
       btn.disabled=busy;
       btn.classList.toggle('opacity-70',busy);
       btn.classList.toggle('cursor-not-allowed',busy);
-      btn.innerHTML=busy?'<span class="spinner-inline mr-1 align-[-2px]"></span> Actualizando...':'↻ Actualizar';
+      btn.innerHTML=busy?'<span class="spinner-inline mr-1 align-[-2px]"></span> Actualizando...':'<svg class="icon icon-sm"><use href="#i-refresh"/></svg> Actualizar';
     }
     function setLastUpdated(value){
       document.getElementById('lastUpdated').textContent='Actualizado: '+(value?new Date(value).toLocaleString('es-CL'):'—');
@@ -911,7 +911,7 @@
       presentationActive=!presentationActive;
       document.body.classList.toggle('presentation-mode',presentationActive);
       document.getElementById('presentationControls').classList.toggle('hidden',!presentationActive);
-      document.getElementById('btnPresentation').textContent=presentationActive?'⏹':'📺';
+      document.getElementById('presIcon').setAttribute('href',presentationActive?'#i-stop':'#i-tv');
       if(presentationActive){
         document.documentElement.requestFullscreen?.().catch(()=>{});
         startSlideshow();
