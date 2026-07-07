@@ -7,11 +7,14 @@
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#6366f1" />
+  <meta name="theme-color" content="#0f172a" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -20,25 +23,42 @@
     :root {
       --bg:#0f172a;--card:#1e293b;--border:#334155;
       --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
-      --inp:#1e293b;--inp-b:#475569;
+      --inp:#0f172a;--inp-b:#475569;
+      --primary:#818cf8;--primary-btn:#6366f1;
+      --up:#34d399;--dn:#f87171;
+      --chip-up:rgba(52,211,153,.12);--chip-dn:rgba(248,113,113,.12);
+      --shadow-card:0 4px 16px rgba(0,0,0,.3);
     }
     .light{
       --bg:#f1f5f9;--card:#ffffff;--border:#e2e8f0;
       --text:#1e293b;--text2:#475569;--text3:#94a3b8;
       --inp:#ffffff;--inp-b:#cbd5e1;
+      --primary:#0a6ed1;--primary-btn:#0a6ed1;
+      --up:#059669;--dn:#dc2626;
+      --chip-up:rgba(5,150,105,.1);--chip-dn:rgba(220,38,38,.08);
+      --shadow-card:0 1px 3px rgba(15,23,42,.08),0 4px 12px rgba(15,23,42,.05);
     }
-    body{background:var(--bg);color:var(--text);transition:background .3s,color .3s;}
-    .card{background:var(--card);border:1px solid var(--border);transition:background .3s;}
+    body{background:var(--bg);color:var(--text);transition:background .3s,color .3s;font-family:'Inter',system-ui,sans-serif;}
+    .card{background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow-card);transition:background .3s;}
     .t2{color:var(--text2)}.t3{color:var(--text3)}
     .inp{background:var(--inp);border:1px solid var(--inp-b);color:var(--text);}
-    .inp:focus{outline:none;border-color:#6366f1;}
+    .inp:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 25%,transparent);}
     .kv{font-variant-numeric:tabular-nums;}
-    .tab-a{background:#4f46e5;color:#fff;}
+    .icon{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:inline-block;vertical-align:-3px;flex:none;}
+    .icon-sm{width:14px;height:14px;}
+    .icon-lg{width:20px;height:20px;}
+    .chip{display:inline-flex;align-items:center;gap:3px;font-size:.65rem;font-weight:600;padding:2px 8px;border-radius:9999px;}
+    .chip-up{background:var(--chip-up);color:var(--up);}
+    .chip-dn{background:var(--chip-dn);color:var(--dn);}
+    .chip-ne{background:var(--border);color:var(--text2);}
+    .chev{transition:transform .2s;}
+    .chev.open{transform:rotate(180deg);}
+    .tab-a{background:var(--primary-btn);color:#fff;}
     .tab-i{color:var(--text2);}
     .tab-i:hover{color:var(--text);background:var(--card);}
-    .alert-card{background:rgba(239,68,68,.1)!important;border-color:rgba(239,68,68,.4)!important;}
-    .badge-low{background:#ef4444;color:#fff;font-size:.65rem;padding:1px 5px;border-radius:9999px;display:inline-block;}
-    .up{color:#22c55e}.dn{color:#ef4444}.ne{color:var(--text2)}
+    .alert-card{background:var(--chip-dn)!important;border-color:var(--dn)!important;}
+    .badge-low{background:var(--dn);color:#fff;font-size:.65rem;padding:1px 5px;border-radius:9999px;display:inline-block;}
+    .up{color:var(--up)}.dn{color:var(--dn)}.ne{color:var(--text2)}
     canvas{max-height:320px;}
     .spinner-inline{display:inline-block;width:.85rem;height:.85rem;border:2px solid currentColor;border-top-color:transparent;border-radius:9999px;animation:spin .8s linear infinite;}
     .accordion-toggle{width:100%;}
@@ -59,16 +79,41 @@
       .accordion-content{display:block!important;}
       table,th,td{border-color:#000!important;color:#000!important;}
       .t2,.t3,.ne,.up,.dn{color:#000!important;}
+      .chip,.chip-up,.chip-dn,.chip-ne{background:transparent!important;color:#000!important;}
       .page-break{break-before:page;}
     }
   </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
 
+  <!-- Sprite de íconos (estilo Lucide, stroke=currentColor) -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="i-logo" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-tv" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+    <symbol id="i-trend-up" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+    <symbol id="i-trend-down" viewBox="0 0 24 24"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-package" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></symbol>
+    <symbol id="i-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  </svg>
+
   <header class="mb-6">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
       <div>
-        <h1 class="text-2xl md:text-3xl font-bold">📊 Dashboard SAP B1</h1>
+        <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-2"><svg class="icon icon-lg" style="color:var(--primary)"><use href="#i-logo"/></svg>Dashboard SAP B1</h1>
         <p id="subtitle" class="t2 text-sm mt-1">Ventas · Últimos 14 días</p>
       </div>
       <div class="flex items-center gap-2 flex-wrap header-actions">
@@ -76,10 +121,10 @@
         <div id="selectorEmpresaWrap" class="hidden">
           <select id="selectorEmpresa" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="changeCompany()"></select>
         </div>
-        <button onclick="toggleTheme()" id="btnTheme" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Cambiar tema">🌙</button>
-        <button onclick="togglePresentation()" id="btnPresentation" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Modo presentación">📺</button>
-        <button onclick="openSettings()" id="btnSettings" class="relative px-3 py-1.5 text-sm rounded-lg card transition" title="Configurar conexión SAP">⚙️<span id="settingsDot" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-400 rounded-full border border-current"></span></button>
-        <button onclick="refreshActive()" id="btnRefresh" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">↻ Actualizar</button>
+        <button onclick="toggleTheme()" id="btnTheme" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Cambiar tema"><svg class="icon"><use id="themeIcon" href="#i-moon"/></svg></button>
+        <button onclick="togglePresentation()" id="btnPresentation" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Modo presentación"><svg class="icon"><use id="presIcon" href="#i-tv"/></svg></button>
+        <button onclick="openSettings()" id="btnSettings" class="relative px-3 py-1.5 text-sm rounded-lg card transition" title="Configurar conexión SAP"><svg class="icon"><use href="#i-settings"/></svg><span id="settingsDot" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-400 rounded-full border border-current"></span></button>
+        <button onclick="refreshActive()" id="btnRefresh" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-refresh"/></svg> Actualizar</button>
       </div>
     </div>
   </header>
@@ -88,11 +133,11 @@
   <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.6)">
     <div class="card rounded-2xl p-6 w-full max-w-md shadow-2xl">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-bold">⚙️ Conexión SAP Business One</h2>
-        <button onclick="closeSettings()" class="t3 hover:text-white text-lg leading-none">✕</button>
+        <h2 class="text-base font-bold flex items-center gap-2"><svg class="icon"><use href="#i-settings"/></svg>Conexión SAP Business One</h2>
+        <button onclick="closeSettings()" class="t3 hover:text-white text-lg leading-none"><svg class="icon"><use href="#i-x"/></svg></button>
       </div>
       <p class="text-xs text-orange-400 mb-4 p-2 rounded-lg" style="background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.3)">
-        ⚠️ Las credenciales se guardan en <strong>localStorage</strong> de este browser y se transmiten por <strong>HTTPS</strong>. Solo para uso interno/desarrollo.
+        <svg class="icon icon-sm" style="vertical-align:-2px"><use href="#i-alert"/></svg> Las credenciales se guardan en <strong>localStorage</strong> de este browser y se transmiten por <strong>HTTPS</strong>. Solo para uso interno/desarrollo.
       </p>
       <div class="space-y-3">
         <div>
@@ -111,13 +156,13 @@
           <label class="t3 text-xs block mb-1">Contraseña SAP</label>
           <div class="relative">
             <input id="cfgSapPass" type="password" placeholder="••••••••" class="inp rounded-lg px-3 py-2 text-sm w-full pr-10"/>
-            <button onclick="togglePassVisibility()" class="absolute right-2 top-1/2 -translate-y-1/2 t3 hover:text-white text-sm" title="Mostrar/ocultar">👁</button>
+            <button onclick="togglePassVisibility()" class="absolute right-2 top-1/2 -translate-y-1/2 t3 hover:text-white text-sm" title="Mostrar/ocultar"><svg class="icon icon-sm"><use href="#i-eye"/></svg></button>
           </div>
         </div>
       </div>
       <div class="flex gap-2 mt-5">
-        <button onclick="saveSettings()" class="flex-1 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition font-semibold">💾 Guardar y recargar</button>
-        <button onclick="clearSettings()" class="px-4 py-2 text-sm bg-red-800 hover:bg-red-700 text-white rounded-lg transition" title="Borrar credenciales custom y volver a Script Properties">🗑 Limpiar</button>
+        <button onclick="saveSettings()" class="flex-1 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition font-semibold"><svg class="icon icon-sm"><use href="#i-save"/></svg> Guardar y recargar</button>
+        <button onclick="clearSettings()" class="px-4 py-2 text-sm bg-red-800 hover:bg-red-700 text-white rounded-lg transition" title="Borrar credenciales custom y volver a Script Properties"><svg class="icon icon-sm"><use href="#i-trash"/></svg> Limpiar</button>
         <button onclick="closeSettings()" class="px-4 py-2 text-sm card rounded-lg transition t2">Cancelar</button>
       </div>
       <p class="t3 text-xs mt-3 text-center">Sin datos → se usan las credenciales de Google Script Properties</p>
@@ -125,8 +170,8 @@
   </div>
 
   <nav class="mb-6 flex gap-2">
-    <button id="btnTabVentas" onclick="switchTab('ventas')" class="tab-a px-4 py-2 rounded-lg text-sm font-semibold transition">💰 Ventas</button>
-    <button id="btnTabStock"  onclick="switchTab('stock')"  class="tab-i px-4 py-2 rounded-lg text-sm font-semibold transition">📦 Stock</button>
+    <button id="btnTabVentas" onclick="switchTab('ventas')" class="tab-a px-4 py-2 rounded-lg text-sm font-semibold transition"><svg class="icon icon-sm"><use href="#i-coins"/></svg> Ventas</button>
+    <button id="btnTabStock"  onclick="switchTab('stock')"  class="tab-i px-4 py-2 rounded-lg text-sm font-semibold transition"><svg class="icon icon-sm"><use href="#i-package"/></svg> Stock</button>
   </nav>
 
   <!-- ====== TAB VENTAS ====== -->
@@ -141,7 +186,7 @@
         </select>
       </div>
       <div><label class="t3 text-xs block mb-1">Meta diaria (CLP)</label><input type="number" id="metaDiaria" placeholder="0" class="inp rounded-lg px-3 py-1.5 text-sm w-36" oninput="applyFilters()"/></div>
-      <button onclick="clearVentasFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide">✕ Limpiar</button>
+      <button onclick="clearVentasFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide"><svg class="icon icon-sm"><use href="#i-x"/></svg> Limpiar</button>
     </div>
 
     <div id="loadingState" class="text-center py-20">
@@ -149,7 +194,7 @@
       <p class="mt-3 t2">Consultando SAP...</p>
     </div>
     <div id="errorState" class="hidden text-center py-20">
-      <p class="text-red-400 text-lg">⚠️ Error al cargar datos</p>
+      <p class="text-lg flex items-center justify-center gap-2" style="color:var(--dn)"><svg class="icon icon-lg"><use href="#i-alert"/></svg>Error al cargar datos</p>
       <p id="errorMsg" class="t3 text-sm mt-2"></p>
     </div>
 
@@ -212,12 +257,12 @@
             <h2 class="text-sm font-semibold t2">Detalle de Facturas</h2>
             <p id="ventasCount" class="t3 text-xs mt-0.5"></p>
           </div>
-          <span id="invoicesChevron" class="text-sm">▲</span>
+          <svg id="invoicesChevron" class="icon chev open"><use href="#i-chevron"/></svg>
         </button>
         <div id="invoicesContent" class="accordion-content mt-4">
           <div class="flex justify-end gap-2 mb-3 print-hide">
-            <button onclick="printVentas()" class="export-btn px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition">🖨️ Imprimir</button>
-            <button onclick="exportVentasCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+            <button onclick="printVentas()" class="export-btn px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-print"/></svg> Imprimir</button>
+            <button onclick="exportVentasCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -237,11 +282,11 @@
             <h2 class="text-sm font-semibold t2">Pedidos</h2>
             <p id="ordersCount" class="t3 text-xs mt-0.5">0 documentos</p>
           </div>
-          <span id="ordersChevron" class="text-sm">▼</span>
+          <svg id="ordersChevron" class="icon chev"><use href="#i-chevron"/></svg>
         </button>
         <div id="ordersContent" class="accordion-content hidden mt-4">
           <div class="flex justify-end mb-3 print-hide">
-            <button onclick="exportOrdersCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+            <button onclick="exportOrdersCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -261,11 +306,11 @@
             <h2 class="text-sm font-semibold t2">Entregas</h2>
             <p id="deliveriesCount" class="t3 text-xs mt-0.5">0 documentos</p>
           </div>
-          <span id="deliveriesChevron" class="text-sm">▼</span>
+          <svg id="deliveriesChevron" class="icon chev"><use href="#i-chevron"/></svg>
         </button>
         <div id="deliveriesContent" class="accordion-content hidden mt-4">
           <div class="flex justify-end mb-3 print-hide">
-            <button onclick="exportDeliveriesCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition">⬇ Exportar CSV</button>
+            <button onclick="exportDeliveriesCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -291,7 +336,7 @@
       </div>
       <div><label class="t3 text-xs block mb-1">Buscar artículo</label><input type="text" id="stockSearch" placeholder="Código o nombre..." class="inp rounded-lg px-3 py-1.5 text-sm w-52" oninput="applyStockFilters()"/></div>
       <div><label class="t3 text-xs block mb-1">Stock mínimo (alerta)</label><input type="number" id="minStock" placeholder="0" class="inp rounded-lg px-3 py-1.5 text-sm w-32" oninput="applyStockFilters()"/></div>
-      <button onclick="clearStockFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide">✕ Limpiar</button>
+      <button onclick="clearStockFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide"><svg class="icon icon-sm"><use href="#i-x"/></svg> Limpiar</button>
     </div>
 
     <div id="stockLoading" class="text-center py-20">
@@ -300,7 +345,7 @@
       <p class="t3 text-xs mt-1">La primera carga puede tardar varios minutos en bases con muchas bodegas</p>
     </div>
     <div id="stockError" class="hidden text-center py-20">
-      <p class="text-red-400 text-lg">⚠️ Error al cargar stock</p>
+      <p class="text-lg flex items-center justify-center gap-2" style="color:var(--dn)"><svg class="icon icon-lg"><use href="#i-alert"/></svg>Error al cargar stock</p>
       <p id="stockErrorMsg" class="t3 text-sm mt-2"></p>
     </div>
 
@@ -320,7 +365,7 @@
           <canvas id="stockChart"></canvas>
         </div>
         <div class="card rounded-xl p-5">
-          <h2 class="text-sm font-semibold t2 mb-4">🔴 Alertas de Stock Bajo</h2>
+          <h2 class="text-sm font-semibold t2 mb-4 flex items-center gap-2"><svg class="icon icon-sm" style="color:var(--dn)"><use href="#i-alert"/></svg>Alertas de Stock Bajo</h2>
           <div id="stockAlerts" class="space-y-2 max-h-72 overflow-y-auto text-sm">
             <p class="t3 text-xs">Define un stock mínimo en el filtro para ver alertas.</p>
           </div>
@@ -333,7 +378,7 @@
             <h2 class="text-sm font-semibold t2">Stock por Artículo y Bodega</h2>
             <p id="stockCount" class="t3 text-xs mt-0.5"></p>
           </div>
-          <button onclick="exportStockCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition print-hide">⬇ Exportar CSV</button>
+          <button onclick="exportStockCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition print-hide"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
@@ -349,7 +394,7 @@
     <p class="t2 text-xs mb-2">Intervalo de cambio</p>
     <input type="range" id="slideInterval" min="10" max="60" value="30" step="5" class="w-32" oninput="updateInterval(this.value)"/>
     <p id="intervalLabel" class="t3 text-xs mt-1 text-center">30 seg</p>
-    <button onclick="togglePresentation()" class="mt-3 w-full px-2 py-1 text-xs bg-red-700 hover:bg-red-600 text-white rounded-lg">⏹ Salir</button>
+    <button onclick="togglePresentation()" class="mt-3 w-full px-2 py-1 text-xs bg-red-700 hover:bg-red-600 text-white rounded-lg"><svg class="icon icon-sm"><use href="#i-stop"/></svg> Salir</button>
   </div>
 
   <script>
@@ -380,7 +425,7 @@
     const monthFmt=new Intl.DateTimeFormat('es-CL',{month:'short'});
 
     // =========================================================
-    // CONFIGURACIÓN SAP — Modal ⚙️
+    // CONFIGURACIÓN SAP — Modal
     // =========================================================
     const SAP_CRED_KEY = 'sap_credentials';
 
@@ -457,14 +502,17 @@
     // =========================================================
     function toggleTheme(){
       const l=document.body.classList.toggle('light');
-      document.getElementById('btnTheme').textContent=l?'☀️':'🌙';
+      document.getElementById('themeIcon').setAttribute('href',l?'#i-sun':'#i-moon');
       localStorage.setItem('theme',l?'light':'dark');
-      if(rawData)renderHeatmap(filteredInvoices);
+      document.querySelector('meta[name="theme-color"]').setAttribute('content',l?'#ffffff':'#0f172a');
+      if(rawData)applyFilters();
+      if(stockData)applyStockFilters();
     }
     (function(){
       if(localStorage.getItem('theme')==='light'){
         document.body.classList.add('light');
-        document.getElementById('btnTheme').textContent='☀️';
+        document.getElementById('themeIcon').setAttribute('href','#i-sun');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content','#ffffff');
       }
     })();
 
@@ -512,7 +560,7 @@
       btn.disabled=busy;
       btn.classList.toggle('opacity-70',busy);
       btn.classList.toggle('cursor-not-allowed',busy);
-      btn.innerHTML=busy?'<span class="spinner-inline mr-1 align-[-2px]"></span> Actualizando...':'↻ Actualizar';
+      btn.innerHTML=busy?'<span class="spinner-inline mr-1 align-[-2px]"></span> Actualizando...':'<svg class="icon icon-sm"><use href="#i-refresh"/></svg> Actualizar';
     }
     function setLastUpdated(value){
       document.getElementById('lastUpdated').textContent='Actualizado: '+(value?new Date(value).toLocaleString('es-CL'):'—');
@@ -557,7 +605,7 @@
         // Si Apps Script retornó un error JSON (ej: SAP login fallido)
         if(rawData.error){
           const msg = rawData.message||'Error en Apps Script';
-          showError('⚙️ Error SAP: '+msg+' — Verifica las credenciales en ⚙️');
+          showError('Error SAP: '+msg+' — Verifica las credenciales en Configuración');
           return;
         }
         if(resetDates||!document.getElementById('filtroDesde').value||!document.getElementById('filtroHasta').value)setDefaultFilters();
@@ -662,11 +710,12 @@
     }
 
     function trend(curr,prev){
-      if(!prev)return{cls:'ne',txt:'— vs período anterior'};
+      if(!prev)return{cls:'chip-ne',html:'— vs período anterior'};
       const p=((curr-prev)/prev*100);
-      return{cls:p>=0?'up':'dn',txt:`${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(1)}% vs período anterior`};
+      const icon=p>=0?'#i-trend-up':'#i-trend-down';
+      return{cls:p>=0?'chip-up':'chip-dn',html:`<svg class="icon" style="width:11px;height:11px"><use href="${icon}"/></svg>${Math.abs(p).toFixed(1)}% vs anterior`};
     }
-    function setTrend(id,c,p){const t=trend(c,p);const el=document.getElementById(id);el.textContent=t.txt;el.className='text-xs mt-1 '+t.cls;}
+    function setTrend(id,c,p){const t=trend(c,p);const el=document.getElementById(id);el.innerHTML=`<span class="chip ${t.cls}">${t.html}</span>`;el.className='text-xs mt-1';}
 
     function renderKPIs(inv,ord,del,current,previous,metaDia){
       const tot=inv.reduce((s,d)=>s+(d.DocTotal||0),0);
@@ -691,16 +740,30 @@
     function byDay(docs){
       const m={};docs.forEach(d=>{const k=(d.DocDate||'').substring(0,10);if(k)m[k]=(m[k]||0)+(d.DocTotal||0);});return m;
     }
-    function cc(){return document.body.classList.contains('light')?{g:'#e2e8f0',t:'#475569'}:{g:'#334155',t:'#94a3b8'};}
+    function cssVar(name){return getComputedStyle(document.body).getPropertyValue(name).trim();}
+    function hexToRgba(hex,a){const n=parseInt(hex.slice(1),16);return`rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;}
+    function chartColors(){
+      const isLight=document.body.classList.contains('light');
+      const primary=cssVar('--primary');
+      return{
+        primary,
+        primarySoft:hexToRgba(primary,.15),
+        primaryBar:hexToRgba(primary,.7),
+        up:cssVar('--up'),
+        sky:'#38bdf8',
+        grid:isLight?'#e2e8f0':'#334155',
+        ticks:isLight?'#475569':'#94a3b8'
+      };
+    }
 
     function renderCharts(current,previous){
-      const c=cc();
+      const c=chartColors();
       const curMap=byDay(current),curDays=Object.keys(curMap).sort();
 
       if(salesChart)salesChart.destroy();
       salesChart=new Chart(document.getElementById('salesChart').getContext('2d'),{
         type:'bar',
-        data:{labels:curDays,datasets:[{label:'CLP',data:curDays.map(k=>curMap[k]),backgroundColor:'rgba(99,102,241,.7)',borderColor:'rgba(99,102,241,1)',borderWidth:1,borderRadius:4}]},
+        data:{labels:curDays,datasets:[{label:'CLP',data:curDays.map(k=>curMap[k]),backgroundColor:c.primaryBar,borderColor:c.primary,borderWidth:1,borderRadius:4}]},
         options:{
           responsive:true,
           onClick:(_event,elements,chart)=>{
@@ -712,7 +775,7 @@
             applyFilters();
           },
           plugins:{legend:{display:false}},
-          scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmt.format(v)},grid:{color:c.g}}}
+          scales:{x:{ticks:{color:c.ticks},grid:{color:c.grid}},y:{ticks:{color:c.ticks,callback:v=>fmt.format(v)},grid:{color:c.grid}}}
         }
       });
 
@@ -720,8 +783,8 @@
       if(trendChart)trendChart.destroy();
       trendChart=new Chart(document.getElementById('trendChart').getContext('2d'),{
         type:'line',
-        data:{labels:all14Days,datasets:[{label:'Facturación diaria',data:all14Days.map(k=>all14Map[k]),borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.1)',fill:true,tension:.4,pointRadius:4}]},
-        options:{responsive:true,plugins:{legend:{labels:{color:c.t}}},scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmt.format(v)},grid:{color:c.g}}}}
+        data:{labels:all14Days,datasets:[{label:'Facturación diaria',data:all14Days.map(k=>all14Map[k]),borderColor:c.primary,backgroundColor:c.primarySoft,fill:true,tension:.4,pointRadius:4}]},
+        options:{responsive:true,plugins:{legend:{labels:{color:c.ticks}}},scales:{x:{ticks:{color:c.ticks},grid:{color:c.grid}},y:{ticks:{color:c.ticks,callback:v=>fmt.format(v)},grid:{color:c.grid}}}}
       });
 
       if(donutChart)donutChart.destroy();
@@ -729,8 +792,8 @@
       const totPrev=previous.reduce((s,d)=>s+(d.DocTotal||0),0);
       donutChart=new Chart(document.getElementById('donutChart').getContext('2d'),{
         type:'doughnut',
-        data:{labels:['Período actual','Período anterior'],datasets:[{data:[totCur,totPrev],backgroundColor:['#6366f1','#38bdf8'],borderColor:'var(--card)',borderWidth:3}]},
-        options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:c.t,padding:16}}}}
+        data:{labels:['Período actual','Período anterior'],datasets:[{data:[totCur,totPrev],backgroundColor:[c.primary,c.sky],borderColor:'var(--card)',borderWidth:3}]},
+        options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:c.ticks,padding:16}}}}
       });
     }
 
@@ -738,8 +801,8 @@
       const m={};inv.forEach(d=>{const n=d.CardName||d.CardCode||'Sin nombre';m[n]=(m[n]||0)+(d.DocTotal||0);});
       const top=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5);const max=top[0]?.[1]||1;
       document.getElementById('topClients').innerHTML=top.map(([name,tot])=>`
-        <div><div class="flex justify-between text-xs mb-1"><span class="t2 truncate max-w-xs">${esc(name)}</span><span class="text-emerald-400 font-mono ml-2">${fmt.format(tot)}</span></div>
-        <div class="w-full rounded-full h-1.5" style="background:var(--border)"><div class="bg-emerald-500 h-1.5 rounded-full" style="width:${(tot/max*100).toFixed(1)}%"></div></div></div>`).join('');
+        <div><div class="flex justify-between text-xs mb-1"><span class="t2 truncate max-w-xs">${esc(name)}</span><span class="kv ml-2" style="color:var(--up)">${fmt.format(tot)}</span></div>
+        <div class="w-full rounded-full h-1.5" style="background:var(--border)"><div class="h-1.5 rounded-full" style="background:var(--up);width:${(tot/max*100).toFixed(1)}%"></div></div></div>`).join('');
     }
     function dateKey(d){
       return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -752,8 +815,8 @@
     function renderHeatmap(invoices){
       const el=document.getElementById('heatmapContainer');
       if(!el)return;
-      const isLight=document.body.classList.contains('light');
-      const levels=isLight?['#9be9a8','#40c463','#30a14e','#216e39']:['#0d4429','#006d32','#26a641','#39d353'];
+      const primary=cssVar('--primary');
+      const levels=[hexToRgba(primary,.25),hexToRgba(primary,.45),hexToRgba(primary,.7),primary];
       const totals={};
       invoices.forEach(d=>{
         const k=(d.DocDate||'').substring(0,10);
@@ -852,7 +915,7 @@
           <td class="py-2 pr-4 text-xs max-w-xs truncate">${esc(d.CardName||d.CardCode||'—')}</td>
           <td class="py-2 pr-4 text-xs">${(d.DocDate||'').substring(0,10)}</td>
           <td class="py-2 pr-4 text-xs text-right font-mono">${fmt.format(d.DocTotal||0)}</td>
-          <td class="py-2 text-xs"><span class="px-2 py-0.5 rounded-full text-xs ${d.DocumentStatus==='bost_Close'?'bg-slate-600 text-slate-300':'bg-emerald-900/50 text-emerald-300'}">${getStatusLabel(d.DocumentStatus)}</span></td>
+          <td class="py-2 text-xs"><span class="chip ${d.DocumentStatus==='bost_Close'?'chip-ne':'chip-up'}">${getStatusLabel(d.DocumentStatus)}</span></td>
         </tr>`).join('');
     }
     function toggleAccordion(type){
@@ -861,7 +924,7 @@
     }
     function syncAccordion(type){
       document.getElementById(type+'Content').classList.toggle('hidden',!accordionState[type]);
-      document.getElementById(type+'Chevron').textContent=accordionState[type]?'▲':'▼';
+      document.getElementById(type+'Chevron').classList.toggle('open',accordionState[type]);
     }
     function printVentas(){
       accordionState.orders=true;accordionState.deliveries=true;
@@ -872,7 +935,7 @@
       presentationActive=!presentationActive;
       document.body.classList.toggle('presentation-mode',presentationActive);
       document.getElementById('presentationControls').classList.toggle('hidden',!presentationActive);
-      document.getElementById('btnPresentation').textContent=presentationActive?'⏹':'📺';
+      document.getElementById('presIcon').setAttribute('href',presentationActive?'#i-stop':'#i-tv');
       if(presentationActive){
         document.documentElement.requestFullscreen?.().catch(()=>{});
         startSlideshow();
@@ -923,11 +986,11 @@
         if(!res.ok)throw new Error('HTTP '+res.status);
         stockData=await res.json();
         // Error JSON de Apps Script (ej: SAP login fallido) — no dejar la pestaña en blanco
-        if(stockData.error){const msg=stockData.message||'Error en Apps Script';stockData=null;throw new Error('⚙️ Error SAP: '+msg);}
+        if(stockData.error){const msg=stockData.message||'Error en Apps Script';stockData=null;throw new Error('Error SAP: '+msg);}
         // Warnings no fatales (alguna consulta OData falló): mostrarlos sobre el contenido
         const warnEl=document.getElementById('stockWarnings');
         if(stockData.warnings&&stockData.warnings.length){
-          warnEl.textContent='⚠️ SAP: '+stockData.warnings.join(' · ');
+          warnEl.textContent='SAP: '+stockData.warnings.join(' · ');
           warnEl.classList.remove('hidden');
         }else{
           warnEl.classList.add('hidden');
@@ -971,18 +1034,18 @@
 
     function renderStockAlerts(alertas,min){
       const el=document.getElementById('stockAlerts');
-      if(!min||!alertas.length){el.innerHTML=min?'<p class="t3 text-xs">✅ Ningún artículo por debajo del mínimo.</p>':'<p class="t3 text-xs">Define un stock mínimo en el filtro para ver alertas.</p>';return;}
+      if(!min||!alertas.length){el.innerHTML=min?'<p class="t3 text-xs flex items-center gap-1"><svg class="icon icon-sm" style="color:var(--up)"><use href="#i-check"/></svg>Ningún artículo por debajo del mínimo.</p>':'<p class="t3 text-xs">Define un stock mínimo en el filtro para ver alertas.</p>';return;}
       el.innerHTML=alertas.slice(0,50).map(a=>`<div class="flex items-center justify-between text-xs"><span class="t2 truncate max-w-xs">${esc(a.nombre||a.codigo)}</span><span class="badge-low ml-2">${fmtNum.format(a.total)} uds</span></div>`).join('');
     }
 
     function renderStockChart(data){
-      const c=cc(),bodegas=data.bodegas||[],arts=data.articulos||[];
+      const c=chartColors(),bodegas=data.bodegas||[],arts=data.articulos||[];
       const totals=bodegas.map(b=>arts.reduce((s,a)=>s+((a.bodegas||{})[b.codigo]||0),0));
       if(stockChart)stockChart.destroy();
       stockChart=new Chart(document.getElementById('stockChart').getContext('2d'),{
         type:'bar',
-        data:{labels:bodegas.map(b=>b.nombre||b.codigo),datasets:[{label:'Unidades',data:totals,backgroundColor:'rgba(16,185,129,.7)',borderColor:'rgba(16,185,129,1)',borderWidth:1,borderRadius:4}]},
-        options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:c.t},grid:{color:c.g}},y:{ticks:{color:c.t,callback:v=>fmtNum.format(v)},grid:{color:c.g}}}}
+        data:{labels:bodegas.map(b=>b.nombre||b.codigo),datasets:[{label:'Unidades',data:totals,backgroundColor:hexToRgba(c.up,.7),borderColor:c.up,borderWidth:1,borderRadius:4}]},
+        options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:c.ticks},grid:{color:c.grid}},y:{ticks:{color:c.ticks,callback:v=>fmtNum.format(v)},grid:{color:c.grid}}}}
       });
     }
 

@@ -36,6 +36,7 @@ bodega del sistema y puede superar 50MB con pocas decenas de artículos. `$filte
 - Tras modificar `CodeStock.gs`: `clasp push -f` + `clasp deploy -i <deployment-id de la URL>` — sin esto producción sigue con código viejo. Verificar con `?action=ping`
 - Service Worker: documento network-first (desde `sap-dashboard-v2`); al cambiar estrategia de caché en `sw.js`, subir la versión de `CACHE_NAME` o el navegador nunca reinstala el SW
 - Commits incluyen trailer: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
+- Íconos: sprite SVG inline (#i-*) con <use>; prohibido emojis en la UI. Charts leen colores via chartColors()/tokens CSS
 
 ## Features ya implementadas (no duplicar)
 **Ventas:** KPIs comparativa, filtros (fecha/cliente/vendedor/meta), rango histórico dinámico

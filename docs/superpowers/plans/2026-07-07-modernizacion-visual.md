@@ -68,7 +68,7 @@
     .tab-a{background:var(--primary-btn);color:#fff;}
 ```
 
-(Las demás reglas del `<style>` no se tocan en este task. Notas: `--inp` oscuro pasa de `#1e293b` a `#0f172a` — los inputs se hunden respecto a la card, es intencional. Desviación aceptada del spec: el radio de cards queda en el `rounded-xl`/`rounded-2xl` de Tailwind ya presente (12/16px) en vez de un token `--radius` de 14px — no pelear con las clases utilitarias existentes.)
+(Las demás reglas del `<style>` no se tocan en este task. Notas: `--inp` oscuro pasa de `#1e293b` a `#0f172a` — los inputs se hunden respecto a la card, es intencional. Desviación aceptada del spec: el radio de cards queda en el `rounded-xl`/`rounded-2xl` de Tailwind ya presente (12/16px) en vez de un token `--radius` de 14px — no pelear con las clases utilitarias existentes. Segunda desviación aceptada: la clase `.num` y el letter-spacing -0.5px del spec §3 no se implementaron — `.kv` ya aporta tabular-nums y las celdas de monto conservan font-mono.)
 
 - [ ] **Step 4: Verificar** — Run: `git diff --stat index.html` → solo index.html. Grep `"--primary:#818cf8"` en index.html → 1 match. Abrir el archivo en navegador (doble click) y confirmar que carga sin errores de consola y con fuente Inter.
 
