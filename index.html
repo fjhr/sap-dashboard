@@ -76,10 +76,51 @@
         </div>
         <button onclick="toggleTheme()" id="btnTheme" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Cambiar tema">🌙</button>
         <button onclick="togglePresentation()" id="btnPresentation" class="px-3 py-1.5 text-sm rounded-lg card transition" title="Modo presentación">📺</button>
+        <button onclick="openSettings()" id="btnSettings" class="relative px-3 py-1.5 text-sm rounded-lg card transition" title="Configurar conexión SAP">⚙️<span id="settingsDot" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-400 rounded-full border border-current"></span></button>
         <button onclick="refreshActive()" id="btnRefresh" class="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition">↻ Actualizar</button>
       </div>
     </div>
   </header>
+
+  <!-- ====== MODAL CONFIGURACIÓN SAP ====== -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,.6)">
+    <div class="card rounded-2xl p-6 w-full max-w-md shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-bold">⚙️ Conexión SAP Business One</h2>
+        <button onclick="closeSettings()" class="t3 hover:text-white text-lg leading-none">✕</button>
+      </div>
+      <p class="text-xs text-orange-400 mb-4 p-2 rounded-lg" style="background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.3)">
+        ⚠️ Las credenciales se guardan en <strong>localStorage</strong> de este browser y se transmiten por <strong>HTTPS</strong>. Solo para uso interno/desarrollo.
+      </p>
+      <div class="space-y-3">
+        <div>
+          <label class="t3 text-xs block mb-1">SAP Base URL</label>
+          <input id="cfgSapUrl" type="url" placeholder="https://servidor:50000/b1s/v1" class="inp rounded-lg px-3 py-2 text-sm w-full"/>
+        </div>
+        <div>
+          <label class="t3 text-xs block mb-1">Company DB</label>
+          <input id="cfgSapDb" type="text" placeholder="MIEMPRESA" class="inp rounded-lg px-3 py-2 text-sm w-full"/>
+        </div>
+        <div>
+          <label class="t3 text-xs block mb-1">Usuario SAP</label>
+          <input id="cfgSapUser" type="text" placeholder="Integrador" class="inp rounded-lg px-3 py-2 text-sm w-full"/>
+        </div>
+        <div>
+          <label class="t3 text-xs block mb-1">Contraseña SAP</label>
+          <div class="relative">
+            <input id="cfgSapPass" type="password" placeholder="••••••••" class="inp rounded-lg px-3 py-2 text-sm w-full pr-10"/>
+            <button onclick="togglePassVisibility()" class="absolute right-2 top-1/2 -translate-y-1/2 t3 hover:text-white text-sm" title="Mostrar/ocultar">👁</button>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <button onclick="saveSettings()" class="flex-1 px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition font-semibold">💾 Guardar y recargar</button>
+        <button onclick="clearSettings()" class="px-4 py-2 text-sm bg-red-800 hover:bg-red-700 text-white rounded-lg transition" title="Borrar credenciales custom y volver a Script Properties">🗑 Limpiar</button>
+        <button onclick="closeSettings()" class="px-4 py-2 text-sm card rounded-lg transition t2">Cancelar</button>
+      </div>
+      <p class="t3 text-xs mt-3 text-center">Sin datos → se usan las credenciales de Google Script Properties</p>
+    </div>
+  </div>
 
   <nav class="mb-6 flex gap-2">
     <button id="btnTabVentas" onclick="switchTab('ventas')" class="tab-a px-4 py-2 rounded-lg text-sm font-semibold transition">💰 Ventas</button>
@@ -329,6 +370,82 @@
     const accordionState={invoices:true,orders:false,deliveries:false};
     const monthFmt=new Intl.DateTimeFormat('es-CL',{month:'short'});
 
+    // =========================================================
+    // CONFIGURACIÓN SAP — Modal ⚙️
+    // =========================================================
+    const SAP_CRED_KEY = 'sap_credentials';
+
+    function getCredParams(){
+      try {
+        const c = JSON.parse(localStorage.getItem(SAP_CRED_KEY)||'{}');
+        const p = {};
+        if(c.sapUrl)  p.sapUrl  = c.sapUrl;
+        if(c.sapDb)   p.sapDb   = c.sapDb;
+        if(c.sapUser) p.sapUser = c.sapUser;
+        if(c.sapPass) p.sapPass = c.sapPass;
+        return p;
+      } catch(e){ return {}; }
+    }
+
+    function hasCustomCreds(){
+      const c = getCredParams();
+      return Object.keys(c).length > 0;
+    }
+
+    function updateSettingsDot(){
+      document.getElementById('settingsDot').classList.toggle('hidden', !hasCustomCreds());
+    }
+
+    function openSettings(){
+      try {
+        const c = JSON.parse(localStorage.getItem(SAP_CRED_KEY)||'{}');
+        document.getElementById('cfgSapUrl').value  = c.sapUrl  || '';
+        document.getElementById('cfgSapDb').value   = c.sapDb   || '';
+        document.getElementById('cfgSapUser').value = c.sapUser || '';
+        document.getElementById('cfgSapPass').value = c.sapPass || '';
+      } catch(e){}
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+
+    function closeSettings(){
+      document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    function saveSettings(){
+      const creds = {
+        sapUrl:  document.getElementById('cfgSapUrl').value.trim(),
+        sapDb:   document.getElementById('cfgSapDb').value.trim(),
+        sapUser: document.getElementById('cfgSapUser').value.trim(),
+        sapPass: document.getElementById('cfgSapPass').value
+      };
+      // Solo guardar campos con valor
+      const toSave = Object.fromEntries(Object.entries(creds).filter(([,v])=>v));
+      localStorage.setItem(SAP_CRED_KEY, JSON.stringify(toSave));
+      closeSettings();
+      updateSettingsDot();
+      loadData();  // recargar con nuevas credenciales
+      if(tabActual==='stock') loadStock(true);
+    }
+
+    function clearSettings(){
+      localStorage.removeItem(SAP_CRED_KEY);
+      closeSettings();
+      updateSettingsDot();
+      loadData();
+      if(tabActual==='stock') loadStock(true);
+    }
+
+    function togglePassVisibility(){
+      const el = document.getElementById('cfgSapPass');
+      el.type = el.type === 'password' ? 'text' : 'password';
+    }
+
+    // Cerrar modal al hacer click fuera
+    document.getElementById('settingsModal').addEventListener('click', function(e){
+      if(e.target===this) closeSettings();
+    });
+
+    // =========================================================
     function toggleTheme(){
       const l=document.body.classList.toggle('light');
       document.getElementById('btnTheme').textContent=l?'☀️':'🌙';
@@ -364,16 +481,16 @@
       return url.toString();
     }
     function getSalesUrl(){
-      return buildUrl(APPS_SCRIPT_URL,{daysBack:DAYS_BACK,company:getSelectedCompany()});
+      return buildUrl(APPS_SCRIPT_URL,{daysBack:DAYS_BACK,company:getSelectedCompany(),...getCredParams()});
     }
     function getSellersUrl(){
-      return buildUrl(APPS_SCRIPT_URL,{action:'sellers',company:getSelectedCompany()});
+      return buildUrl(APPS_SCRIPT_URL,{action:'sellers',company:getSelectedCompany(),...getCredParams()});
     }
     function getCompaniesUrl(){
       return buildUrl(APPS_SCRIPT_URL,{action:'companies'});
     }
     function getStockUrl(force){
-      return buildUrl(STOCK_URL,{company:getSelectedCompany(),refresh:force?'1':''});
+      return buildUrl(STOCK_URL,{company:getSelectedCompany(),refresh:force?'1':'',...getCredParams()});
     }
 
     function setLoading(isLoading){
@@ -861,6 +978,7 @@
     }
 
     (async function init(){
+      updateSettingsDot();
       await initCompanies();
       await loadData(true);
     })();

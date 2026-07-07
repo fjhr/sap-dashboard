@@ -23,22 +23,42 @@ var SELLERS_CACHE_KEY = 'sap_sellers_data';
 var STOCK_SOLO_CON_STOCK = true; // true = solo articulos con stock > 0
 var STOCK_MAX_PAGINAS = 100;     // tope de seguridad (100 pag x 100 items = 10.000)
 
+// Override de credenciales por-request (se setea en doGet, stateless entre requests)
+var currentCredOverride_ = null;
+
 function doGet(e) {
   var params = (e && e.parameter) ? e.parameter : {};
   var action = params.action;
 
+  // Credenciales custom desde el dashboard (override Script Properties)
+  if (params.sapUrl || params.sapUser || params.sapPass || params.sapDb) {
+    currentCredOverride_ = {
+      sapUrl:  params.sapUrl  || null,
+      sapUser: params.sapUser || null,
+      sapPass: params.sapPass || null,
+      sapDb:   params.sapDb   || null
+    };
+  } else {
+    currentCredOverride_ = null;
+  }
+
   if (action === 'companies') return jsonResponse_({ companies: getPublicCompanies_() });
 
   var companyConfig = getCompanyConfig_(params);
+  // Si hay override de companyDb, tomarlo directamente
+  if (currentCredOverride_ && currentCredOverride_.sapDb) {
+    companyConfig = { id: currentCredOverride_.sapDb, db: currentCredOverride_.sapDb };
+  }
 
   if (action === 'sellers') return serveSellers_(companyConfig);
   if (action === 'stock') return serveStock_(e, companyConfig);
 
   var daysBack = params.daysBack ? parseInt(params.daysBack, 10) : null;
-  var cacheKey = buildCacheKey_(CACHE_KEY, companyConfig.id, daysBack);
+  // Con credenciales custom no usamos caché (cada usuario puede tener creds distintas)
+  var cacheKey = currentCredOverride_ ? null : buildCacheKey_(CACHE_KEY, companyConfig.id, daysBack);
 
   var cache = CacheService.getScriptCache();
-  var cached = cache.get(cacheKey);
+  var cached = cacheKey ? cache.get(cacheKey) : null;
   var data = cached ? JSON.parse(cached) : fetchAndCache(daysBack, cacheKey, companyConfig.db);
 
   return jsonResponse_(data);
@@ -330,16 +350,18 @@ function sanitizeCachePart_(value) {
   return String(value || 'DEFAULT').replace(/[^A-Za-z0-9_-]/g, '_');
 }
 
-function openSAPSession_(companyDb) {
+function openSAPSession_(companyDb, credOverride) {
+  var cred = credOverride || currentCredOverride_ || {};
   var props = PropertiesService.getScriptProperties();
-  var baseUrl  = props.getProperty('SAP_BASE_URL');
-  var user     = props.getProperty('SAP_USER');
-  var password = props.getProperty('SAP_PASSWORD');
+  var baseUrl  = cred.sapUrl  || props.getProperty('SAP_BASE_URL');
+  var user     = cred.sapUser || props.getProperty('SAP_USER');
+  var password = cred.sapPass || props.getProperty('SAP_PASSWORD');
+  var db       = cred.sapDb   || companyDb || props.getProperty('SAP_COMPANY_DB');
   var language = parseInt(props.getProperty('SAP_LANGUAGE') || '25', 10);
   var loginResp = UrlFetchApp.fetch(baseUrl + '/Login', {
     method: 'post',
     contentType: 'application/json',
-    payload: JSON.stringify({ CompanyDB: companyDb, UserName: user, Password: password, Language: language }),
+    payload: JSON.stringify({ CompanyDB: db, UserName: user, Password: password, Language: language }),
     muteHttpExceptions: true
   });
 
