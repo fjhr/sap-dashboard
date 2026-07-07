@@ -1,0 +1,12 @@
+{
+  "name": "sap-dashboard",
+  "version": "1.0.0",
+  "description": "SAP B1 Dashboard - Apps Script deploy tooling",
+  "scripts": {
+    "push": "clasp push --force",
+    "deploy": "clasp push --force && clasp deploy --deploymentId AKfycby4hbghlmaLSHIolQ11c5cGafG-OJbTlBkKRS4PvRFQO_l3Pr4ocwEnUiedq2R9qkUX --description \"Auto-deploy\"",
+    "status": "clasp deployments",
+    "logs": "clasp logs"
+  },
+  "private": true
+}

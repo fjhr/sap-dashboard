@@ -1,0 +1,5 @@
+# Ignorar todo excepto los archivos de Apps Script
+**
+!CodeStock.gs
+!appsscript.json
+.clasp.json
