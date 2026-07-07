@@ -302,6 +302,9 @@
       <p id="stockErrorMsg" class="t3 text-sm mt-2"></p>
     </div>
 
+    <!-- Warnings no fatales del backend (ej: /Items falló pero /Warehouses no) -->
+    <div id="stockWarnings" class="hidden card rounded-xl p-3 mb-4 text-sm text-amber-400 border border-amber-600"></div>
+
     <div id="stockContent" class="hidden space-y-5">
       <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="card rounded-xl p-5"><p class="t2 text-xs uppercase tracking-wider mb-1">Artículos con Stock</p><p id="kpiArticulos" class="kv text-2xl font-bold text-emerald-400">—</p><p class="t3 text-xs mt-1">artículos</p></div>
@@ -919,6 +922,14 @@
         stockData=await res.json();
         // Error JSON de Apps Script (ej: SAP login fallido) — no dejar la pestaña en blanco
         if(stockData.error){const msg=stockData.message||'Error en Apps Script';stockData=null;throw new Error('⚙️ Error SAP: '+msg);}
+        // Warnings no fatales (alguna consulta OData falló): mostrarlos sobre el contenido
+        const warnEl=document.getElementById('stockWarnings');
+        if(stockData.warnings&&stockData.warnings.length){
+          warnEl.textContent='⚠️ SAP: '+stockData.warnings.join(' · ');
+          warnEl.classList.remove('hidden');
+        }else{
+          warnEl.classList.add('hidden');
+        }
         const sel=document.getElementById('filtroBodega');
         const current=sel.value;
         sel.innerHTML='<option value="">Todas las bodegas</option>'+(stockData.bodegas||[]).map(b=>`<option value="${escAttr(b.codigo)}">${esc(b.nombre||b.codigo)}</option>`).join('');
