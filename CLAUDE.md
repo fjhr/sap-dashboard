@@ -20,7 +20,7 @@ PWA: manifest.json + sw.js
 | Archivo | Descripción |
 |---------|-------------|
 | `CodeStock.gs` | Backend activo (24 funciones, ~468 líneas). NUNCA usar `Code.gs` |
-| `index.html` | Dashboard completo (~969 líneas) |
+| `index.html` | Dashboard completo (~1033 líneas) |
 | `manifest.json` | PWA manifest |
 | `sw.js` | Service Worker (cache-first static, network-first API) |
 | `.clasp.json` | Config de clasp para deploy automatizado del Apps Script |
@@ -158,6 +158,7 @@ Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`,
 - ✅ Stock: KPIs, gráfica, tabla dinámica, alertas stock bajo
 - ✅ **Modal ⚙️ credenciales SAP**: configura URL/DB/user/pass en localStorage, punto naranja indicador, recarga al guardar
 - ✅ **Rango histórico dinámico**: filtros de fecha fuera de la ventana descargada recargan desde SAP (`dateTo` + paginación)
+- ✅ **Rediseño visual 2026-07**: temas oscuro refinado / claro enterprise, Inter, sprite SVG (cero emojis), chips de tendencia, charts tematizados vía `chartColors()` — spec en `docs/superpowers/specs/2026-07-07-modernizacion-visual-design.md`
 - ✅ **Diagnóstico**: endpoint `?action=ping` + array `warnings` en respuestas de ventas Y stock cuando falla alguna consulta OData; la pestaña Stock muestra los warnings en banner ámbar (`#stockWarnings`) y detecta `{error:true}` (no queda en blanco)
 
 ## Roadmap pendiente (priorizado — jul 2026)

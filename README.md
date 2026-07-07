@@ -46,7 +46,8 @@ Dashboard web de **Ventas** y **Stock** para SAP Business One. Publicado en GitH
 
 | Característica | Detalle |
 |----------------|---------|
-| Dark / Light mode | Toggle 🌙/☀️ con persistencia en `localStorage` |
+| Dark / Light mode | Toggle luna/sol con persistencia en `localStorage` — oscuro "refinado" (default) y claro "enterprise" azul Fiori; gráficas y heatmap se re-tematizan al alternar |
+| Diseño moderno | Tipografía Inter con números tabulares, íconos SVG estilo Lucide (sin emojis), tendencias y estados como chips |
 | Multi-empresa | Dropdown en header; configura `SAP_COMPANIES` en Script Properties |
 | Refresh visual | Botón ↻ con spinner + "Actualizando..." bloqueado durante carga |
 | **⚙️ Credenciales SAP** | Modal para configurar URL/CompanyDB/Usuario/Contraseña sin tocar el código; persistidas en `localStorage`; punto naranja indica override activo |
@@ -74,7 +75,7 @@ SAP Business One (Service Layer REST / OData v1)
           │
           │  fetch() al cargar / al cambiar filtros/empresa
           ▼
-  GitHub Pages — index.html (~960 líneas)
+  GitHub Pages — index.html (~1030 líneas, tokens CSS + sprite SVG)
   ├─ Header: empresa selector + dark/light + 📺 presentación + refresh
   ├─ Tab Ventas: filtros + KPIs + charts + mapa calor + drill-down + tablas + acordeón + print
   ├─ Tab Stock: filtros + KPIs + chart + tabla + alertas
