@@ -596,12 +596,28 @@
         if(k)totals[k]=(totals[k]||0)+(d.DocTotal||0);
       });
       const max=Math.max(0,...Object.values(totals));
-      const end=new Date();end.setHours(0,0,0,0);
-      const start=shiftDate(end,-364);
+
+      // Rango dinámico: usa los filtros del header si están definidos
+      const desdeVal=document.getElementById('filtroDesde')?.value;
+      const hastaVal=document.getElementById('filtroHasta')?.value;
+      let end=new Date();end.setHours(0,0,0,0);
+      let start=shiftDate(end,-364);
+      if(hastaVal){end=new Date(hastaVal+'T00:00:00');}
+      if(desdeVal){start=new Date(desdeVal+'T00:00:00');}
+      // Si no hay filtros pero hay datos, extender al día más antiguo de los datos
+      if(!desdeVal&&!hastaVal&&invoices.length){
+        const minDay=invoices.map(d=>(d.DocDate||'').substring(0,10)).filter(Boolean).sort()[0];
+        if(minDay){const d=new Date(minDay+'T00:00:00');if(d<start)start=d;}
+      }
+
+      const diffMs=end-start;
+      const diffDays=Math.ceil(diffMs/(1000*60*60*24))+1;
+      const numWeeks=Math.ceil((diffDays+((start.getDay()+6)%7))/7)+1;
       const gridStart=shiftDate(start,-((start.getDay()+6)%7));
-      const loadedDays=new Set();
+
+      // Días con datos: todos los que tienen facturación en los invoices actuales
+      const loadedDays=new Set(Object.keys(totals));
       if(rawData){
-        for(let i=0;i<DAYS_BACK;i++)loadedDays.add(dateKey(shiftDate(end,-i)));
         (rawData.invoices||[]).forEach(d=>{
           const k=(d.DocDate||'').substring(0,10);
           if(k)loadedDays.add(k);
@@ -609,7 +625,7 @@
       }
       const monthLabels=[];
       let lastMonth='';
-      for(let col=0;col<53;col++){
+      for(let col=0;col<numWeeks;col++){
         let label='';
         for(let row=0;row<7;row++){
           const cellDate=shiftDate(gridStart,col*7+row);
@@ -625,7 +641,7 @@
       }
       const dayLabels=['Lun','','Mié','','Vie','',''].map(v=>`<div class="t3 text-[10px] leading-3 h-[12px]">${v}</div>`).join('');
       const cells=[];
-      for(let col=0;col<53;col++){
+      for(let col=0;col<numWeeks;col++){
         for(let row=0;row<7;row++){
           const cellDate=shiftDate(gridStart,col*7+row);
           const inRange=cellDate>=start&&cellDate<=end;
