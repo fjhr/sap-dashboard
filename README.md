@@ -245,6 +245,7 @@ function clearStockCache() {
 - ✅ Web App solo de lectura; HTML 100% estático sin credenciales
 - ✅ Service Worker cachea solo assets estáticos; API siempre va a la red
 - ⚠️ **Modal ⚙️**: credenciales custom se transmiten por HTTPS como query params → solo para uso interno/dev. No usar en redes públicas sin VPN. Limpiar con el botón 🗑 cuando ya no se necesiten.
+- ⚠️ **Endpoint público**: el Web App está desplegado con acceso "Anyone" y su URL es visible en este repo → cualquiera con la URL puede leer las ventas/stock de la empresa por defecto. Mitigación planificada en el roadmap (token compartido u OAuth). Mientras tanto, tenerlo presente al compartir el repo.
 
 ---
 
@@ -261,14 +262,16 @@ function clearStockCache() {
 
 ---
 
-## 📈 Roadmap
+## 📈 Roadmap (priorizado)
 
-- [ ] **Reporte automático por email** — Apps Script trigger diario con resumen HTML
-- [ ] **Persistencia histórica en Google Sheets** — historial de meses/años para el mapa de calor completo
-- [ ] **Notificaciones push de stock bajo** — PWA PushManager
-- [ ] **Autenticación Google OAuth** — acceso solo al dominio de la empresa
-- [ ] **Desglose por familia de artículos** — `ItemsGroupCode` en stock y ventas
-- [ ] **Indicador de rotación de inventario** — días de stock disponible según ritmo de ventas
+1. [ ] **Proteger el endpoint** ⚠️ — token compartido (`?key=`) validado en Script Properties como mínimo viable; OAuth Google como versión completa. Hoy la URL pública permite leer los datos de la empresa por defecto
+2. [ ] **Credenciales del modal por POST** — sacar `sapUser`/`sapPass` de los query params (historial/logs) usando `doPost` con body `text/plain`
+3. [ ] **Persistencia histórica en Google Sheets** — el trigger de 6h anexa totales diarios; mapa de calor de año completo y análisis sin depender de SAP
+4. [ ] **Stock rápido en bases pesadas** — caché por hash de credenciales y/o detalle por bodega bajo demanda (hoy la primera carga con credenciales custom puede tardar minutos)
+5. [ ] **Reporte automático por email** — Apps Script trigger diario con resumen HTML (el backend ya tiene todos los datos)
+6. [ ] **Notificaciones push de stock bajo** — PWA PushManager
+7. [ ] **Desglose por familia de artículos** — `ItemsGroupCode` en stock y ventas
+8. [ ] **Indicador de rotación de inventario** — días de stock disponible según ritmo de ventas
 
 ---
 

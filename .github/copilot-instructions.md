@@ -50,5 +50,7 @@ exportar CSV, imprimir PDF.
 `?daysBack=N` · `?daysBack=N&dateTo=yyyy-mm-dd` (rango histórico) · `?company=ID` · `?action=sellers` · `?action=companies` · `?action=stock` · `?action=stock&refresh=1` · `?action=ping` (diagnóstico) · `?sapUrl=...&sapDb=...&sapUser=...&sapPass=...` (override credenciales)
 La respuesta de ventas incluye `dateFrom`, `dateTo` y, si alguna consulta OData falló, un array `warnings`.
 
-## Roadmap pendiente
-Email automático · Persistencia en Sheets · Push notifications · Google OAuth · Filtro por familia artículos
+## Roadmap pendiente (en orden de prioridad)
+Proteger endpoint (token/OAuth — hoy es "Anyone" con URL pública) · Credenciales modal por POST ·
+Persistencia en Sheets · Stock rápido en bases pesadas (caché por hash de creds / detalle bajo
+demanda) · Email automático · Push notifications · Filtro por familia artículos

@@ -158,12 +158,21 @@ Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`,
 - ✅ **Rango histórico dinámico**: filtros de fecha fuera de la ventana descargada recargan desde SAP (`dateTo` + paginación)
 - ✅ **Diagnóstico**: endpoint `?action=ping` + array `warnings` en respuestas de ventas Y stock cuando falla alguna consulta OData; la pestaña Stock muestra los warnings en banner ámbar (`#stockWarnings`) y detecta `{error:true}` (no queda en blanco)
 
-## Roadmap pendiente
-- [ ] Reporte automático por email (Apps Script trigger diario)
-- [ ] Persistencia histórica en Google Sheets
-- [ ] Notificaciones push de stock bajo (PWA PushManager)
-- [ ] Autenticación Google OAuth
-- [ ] Filtro por familia de artículos (`ItemsGroupCode`)
+## Roadmap pendiente (priorizado — jul 2026)
+1. [ ] **Seguridad del endpoint** ⚠️ — el Web App es "Anyone" y su URL está en el repo público:
+       cualquiera puede leer ventas/stock de la empresa por defecto. Mínimo viable: token
+       compartido (`?key=`) validado contra Script Properties, configurable en el modal ⚙️.
+       Versión completa: OAuth Google.
+2. [ ] **Credenciales del modal por POST** — hoy `sapUser`/`sapPass` viajan como query params
+       (quedan en historial/logs). Migrar a `doPost` con body `text/plain` (evita preflight CORS).
+3. [ ] **Persistencia histórica en Google Sheets** — el trigger de 6h anexa totales diarios;
+       desbloquea mapa de calor de año completo y libera el tope de 1000 docs.
+4. [ ] **Stock rápido en bases pesadas** — caché por hash SHA-256 de credenciales (key
+       `CRED_<hash>`, sin guardar la contraseña) y/o lista de artículos sin
+       `ItemWarehouseInfoCollection` con detalle por bodega bajo demanda (click en artículo).
+5. [ ] Reporte automático por email (Apps Script trigger diario — backend ya tiene todo)
+6. [ ] Notificaciones push de stock bajo (PWA PushManager)
+7. [ ] Filtro por familia de artículos (`ItemsGroupCode`)
 
 ## Reglas del proyecto
 1. **NUNCA hardcodear credenciales** en `index.html` — usar Script Properties o modal ⚙️ (localStorage)
@@ -222,3 +231,6 @@ funcionaban en Postman. Causas encadenadas:
 Moralejas: verificar SIEMPRE qué versión está desplegada (backend Y frontend/SW) antes de
 debuggear código; hacer visibles los errores en la respuesta JSON y en la UI (no solo Logger);
 la posición del byte en un error de JSON.parse dice exactamente contra qué límite chocaste.
+
+**Estado final (2026-07-07):** flujo completo con credenciales custom verificado por Fernando —
+login, ventas con rango histórico, bodegas y artículos de stock funcionando (backend @9).
