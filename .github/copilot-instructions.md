@@ -21,8 +21,11 @@ Los servidores SAP usan certificados autofirmados: **todo** `UrlFetchApp.fetch` 
 
 ## Paginación SAP (crítico)
 No confiar en `Prefer: odata.maxpagesize` ni `odata.nextLink` (hay servidores que los ignoran y
-UrlFetchApp trunca a ~50MB → JSON inválido). Paginar siempre con `$top=100&$skip=N` + `$orderby`
-estable, cortando en página incompleta o al tope de páginas.
+UrlFetchApp trunca a ~50MB → JSON inválido). Paginar siempre con `$top`/`$skip` + `$orderby`
+estable, cortando en página incompleta o al tope de páginas. `/Items` usa página ADAPTATIVA
+(50→5→1 si la página llega truncada): `ItemWarehouseInfoCollection` trae una entrada por cada
+bodega del sistema y puede superar 50MB con pocas decenas de artículos. `$filter` con
+`encodeURIComponent`. Errores/truncamientos → `fetchWarnings_` → banner `#stockWarnings` en la UI.
 
 ## Convenciones
 - Credenciales SAP en **Script Properties** o en el modal ⚙️ (localStorage, solo uso interno/dev)

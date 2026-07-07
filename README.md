@@ -37,6 +37,7 @@ Dashboard web de **Ventas** y **Stock** para SAP Business One. Publicado en GitH
 | Filtro por bodega | Dropdown con todas las bodegas |
 | Búsqueda de artículo | Por código o nombre en tiempo real |
 | Alerta stock mínimo | Umbral configurable; filas en rojo + badge; panel de alertas |
+| Banner de warnings | Si alguna consulta OData falla (ej. `/Items`), muestra el detalle en un banner ámbar en vez de quedar vacío |
 | Gráfica por bodega | Barras de unidades por bodega |
 | Tabla dinámica | Stock por artículo y bodega (hasta 8 bodegas visibles) |
 | Exportar CSV | Exporta todas las bodegas y artículos filtrados |
@@ -185,9 +186,13 @@ const STOCK_URL       = 'https://script.google.com/macros/s/TU_ID/exec?action=st
   "lastUpdated": "...",
   "totales": { "articulos": 1240, "unidades": 58320, "bodegas": 5 },
   "bodegas": [{ "codigo": "01", "nombre": "Bodega Principal" }],
-  "articulos": [{ "codigo": "ART001", "nombre": "Producto", "total": 150, "bodegas": { "01": 100, "02": 50 } }]
+  "articulos": [{ "codigo": "ART001", "nombre": "Producto", "total": 150, "bodegas": { "01": 100, "02": 50 } }],
+  "warnings": ["/Items HTTP 400: ..."]
 }
 ```
+> `warnings` solo aparece si `/Warehouses` o `/Items` fallaron o llegaron truncados; el frontend
+> lo muestra como banner ámbar en la pestaña Stock. `/Items` se pagina con tamaño adaptativo
+> (50→5→1) porque `ItemWarehouseInfoCollection` puede pesar >50MB en bases con muchas bodegas.
 
 ---
 
@@ -221,6 +226,8 @@ function clearStockCache() {
 | Funciona en Postman pero no en el dashboard | Certificado autofirmado o servidor SAP no accesible desde internet | Todo fetch lleva `validateHttpsCertificates:false`; Apps Script llama desde IPs de Google (no sirve VPN local) |
 | Cambios en `CodeStock.gs` no se reflejan | Deployment sirviendo versión vieja | `clasp push -f` + `clasp deploy -i <deployment-id>`; verificar con `?action=ping` |
 | Cambios en `index.html` no se reflejan | Service Worker anterior a `v2` sirviendo caché | Ctrl+Shift+R una vez; desde `sap-dashboard-v2` el documento va network-first y no vuelve a pasar |
+| `Unterminated string in JSON at position ~52428000` | Respuesta SAP truncada al límite de ~50MB de UrlFetchApp | Ya mitigado con paginación `$top/$skip` adaptativa; si reaparece, revisar el `warnings` de la respuesta |
+| Stock muestra bodegas pero no artículos | `/Items` falló o pesa demasiado (`ItemWarehouseInfoCollection`) | Leer el banner ámbar de warnings en la pestaña Stock |
 | Dashboard en blanco | URL de Apps Script incorrecta | Verificar `APPS_SCRIPT_URL` / `STOCK_URL` |
 | Vendedores vacíos | `/SalesPersons` sin datos | Normal en DBs de prueba; filtro se oculta |
 | Empresas no aparecen | `SAP_COMPANIES` no configurada | Agregar Script Property con JSON |

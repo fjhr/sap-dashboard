@@ -19,8 +19,8 @@ PWA: manifest.json + sw.js
 ## Archivos clave
 | Archivo | Descripción |
 |---------|-------------|
-| `CodeStock.gs` | Backend activo (24 funciones, ~434 líneas). NUNCA usar `Code.gs` |
-| `index.html` | Dashboard completo (~957 líneas) |
+| `CodeStock.gs` | Backend activo (24 funciones, ~468 líneas). NUNCA usar `Code.gs` |
+| `index.html` | Dashboard completo (~969 líneas) |
 | `manifest.json` | PWA manifest |
 | `sw.js` | Service Worker (cache-first static, network-first API) |
 | `.clasp.json` | Config de clasp para deploy automatizado del Apps Script |
@@ -109,8 +109,15 @@ let presentationTimer  = null;  // ID del setInterval del slideshow
 **NO confiar** en `Prefer: odata.maxpagesize` ni en `odata.nextLink`: hay servidores SAP (el del
 modal ⚙️ de Fernando) que los ignoran y devuelven TODO en una sola respuesta. UrlFetchApp trunca
 en ~50MB y el `JSON.parse` revienta con "Unterminated string in JSON at position 52427762".
-Siempre paginar con `$top=100&$skip=N` + `$orderby` estable, cortando cuando la página llega
-incompleta (`recibidos < pageSize`) o al tope de páginas (`SALES_MAX_PAGINAS`/`STOCK_MAX_PAGINAS`).
+Siempre paginar con `$top`/`$skip` + `$orderby` estable, cortando cuando la página llega
+incompleta o al tope de páginas (`SALES_MAX_PAGINAS`/`STOCK_MAX_PAGINAS`).
+
+**`/Items` es un caso especial**: `ItemWarehouseInfoCollection` trae una entrada por **cada**
+bodega del sistema (~40 campos c/u) — en bases con muchas bodegas, incluso 100 artículos superan
+los 50MB. `fetchArticulosStock_` usa **página adaptativa**: parte en 50 y si la página no parsea
+(truncada) reduce 50→5→1 reintentando el mismo `$skip`; si ni 1 artículo cabe, deja warning
+explícito. Al tocar el tope de páginas devuelve resultado parcial + warning. El `$filter` va con
+`encodeURIComponent`.
 
 ## Credenciales custom (modal ⚙️)
 - Botón ⚙️ en header abre un modal para configurar: SAP URL, CompanyDB, Usuario, Contraseña
@@ -149,7 +156,7 @@ Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`,
 - ✅ Stock: KPIs, gráfica, tabla dinámica, alertas stock bajo
 - ✅ **Modal ⚙️ credenciales SAP**: configura URL/DB/user/pass en localStorage, punto naranja indicador, recarga al guardar
 - ✅ **Rango histórico dinámico**: filtros de fecha fuera de la ventana descargada recargan desde SAP (`dateTo` + paginación)
-- ✅ **Diagnóstico**: endpoint `?action=ping` + array `warnings` en respuesta de ventas cuando falla alguna consulta OData
+- ✅ **Diagnóstico**: endpoint `?action=ping` + array `warnings` en respuestas de ventas Y stock cuando falla alguna consulta OData; la pestaña Stock muestra los warnings en banner ámbar (`#stockWarnings`) y detecta `{error:true}` (no queda en blanco)
 
 ## Roadmap pendiente
 - [ ] Reporte automático por email (Apps Script trigger diario)
@@ -195,11 +202,23 @@ gh api repos/fjhr/sap-dashboard/collaborators/USUARIO --method PUT --field permi
 ```
 
 ## Debugging — historia de guerra (jul 2026)
-Síntoma: credenciales del modal ⚙️ fallaban con "SAP Login failed" pero funcionaban en Postman.
-Causas encadenadas encontradas:
+**Cap. 1 — Ventas.** Síntoma: credenciales del modal ⚙️ fallaban con "SAP Login failed" pero
+funcionaban en Postman. Causas encadenadas:
 1. Producción servía una versión vieja del script (el fix SSL existía local pero sin desplegar).
 2. `validateHttpsCertificates: false` estaba solo en el `/Login`, no en los demás fetch.
 3. `fetchAll` tragaba errores OData devolviendo `[]` (solo `Logger.log`).
 4. Los datos de la DB eran de 2021 y el filtro de fecha solo filtraba localmente los últimos 14 días.
-Moraleja: verificar SIEMPRE qué versión está desplegada antes de debuggear el código local, y
-hacer visibles los errores en la respuesta JSON (no solo en el Logger).
+
+**Cap. 2 — Stock.** Síntoma: pestaña Stock vacía, luego "Unterminated string in JSON at position
+52427762" (≈50MB = límite de UrlFetchApp). Causas encadenadas:
+1. Al unificar `STOCK_URL` al nuevo deployment se perdió el `?action=stock` de la URL vieja →
+   Stock consultaba el endpoint de ventas (vacío sin error).
+2. El SW (`sap-dashboard-v1`) servía `index.html` cache-first con cache fijo → los usuarios
+   corrían el HTML de su primera visita PARA SIEMPRE (fix publicado, invisible). Solución:
+   documento network-first + bump de `CACHE_NAME`.
+3. El servidor SAP custom devolvía >50MB en `/Items` incluso con `$top=100` porque
+   `ItemWarehouseInfoCollection` pesa muchísimo por artículo → página adaptativa.
+
+Moralejas: verificar SIEMPRE qué versión está desplegada (backend Y frontend/SW) antes de
+debuggear código; hacer visibles los errores en la respuesta JSON y en la UI (no solo Logger);
+la posición del byte en un error de JSON.parse dice exactamente contra qué límite chocaste.
