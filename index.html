@@ -483,21 +483,18 @@
     }
     function getSalesUrl(){
       const creds = getCredParams();
-      const bust = Object.keys(creds).length ? {_t:Date.now()} : {};
-      return buildUrl(APPS_SCRIPT_URL,{daysBack:DAYS_BACK,company:getSelectedCompany(),...creds,...bust});
+      return buildUrl(APPS_SCRIPT_URL,{daysBack:DAYS_BACK,company:getSelectedCompany(),...creds,_t:Date.now()});
     }
     function getSellersUrl(){
       const creds = getCredParams();
-      const bust = Object.keys(creds).length ? {_t:Date.now()} : {};
-      return buildUrl(APPS_SCRIPT_URL,{action:'sellers',company:getSelectedCompany(),...creds,...bust});
+      return buildUrl(APPS_SCRIPT_URL,{action:'sellers',company:getSelectedCompany(),...creds,_t:Date.now()});
     }
     function getCompaniesUrl(){
-      return buildUrl(APPS_SCRIPT_URL,{action:'companies'});
+      return buildUrl(APPS_SCRIPT_URL,{action:'companies',_t:Date.now()});
     }
     function getStockUrl(force){
       const creds = getCredParams();
-      const bust = Object.keys(creds).length ? {_t:Date.now()} : {};
-      return buildUrl(STOCK_URL,{company:getSelectedCompany(),refresh:force?'1':'',...creds,...bust});
+      return buildUrl(STOCK_URL,{company:getSelectedCompany(),refresh:force?'1':'',...creds,_t:Date.now()});
     }
 
     function setLoading(isLoading){

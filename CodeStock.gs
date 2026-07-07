@@ -30,6 +30,19 @@ function doGet(e) {
   var params = (e && e.parameter) ? e.parameter : {};
   var action = params.action;
 
+  // Endpoint de diagnóstico — devuelve qué recibió el script (sin credenciales en claro)
+  if (action === 'ping') {
+    return jsonResponse_({
+      ok: true,
+      receivedParams: Object.keys(params),
+      hasCredOverride: !!(params.sapUrl || params.sapUser || params.sapPass || params.sapDb),
+      sapUrlReceived: params.sapUrl ? params.sapUrl.substring(0, 30) + '...' : null,
+      sapDbReceived:  params.sapDb  || null,
+      sapUserReceived: params.sapUser ? '***' : null,
+      timestamp: new Date().toISOString()
+    });
+  }
+
   // Credenciales custom desde el dashboard (override Script Properties)
   if (params.sapUrl || params.sapUser || params.sapPass || params.sapDb) {
     currentCredOverride_ = {
