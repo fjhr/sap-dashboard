@@ -7,7 +7,7 @@
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#6366f1" />
+  <meta name="theme-color" content="#0f172a" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -79,6 +79,7 @@
       .accordion-content{display:block!important;}
       table,th,td{border-color:#000!important;color:#000!important;}
       .t2,.t3,.ne,.up,.dn{color:#000!important;}
+      .chip,.chip-up,.chip-dn,.chip-ne{background:transparent!important;color:#000!important;}
       .page-break{break-before:page;}
     }
   </style>
@@ -749,7 +750,7 @@
         primarySoft:hexToRgba(primary,.15),
         primaryBar:hexToRgba(primary,.7),
         up:cssVar('--up'),
-        sky:isLight?'#38bdf8':'#38bdf8',
+        sky:'#38bdf8',
         grid:isLight?'#e2e8f0':'#334155',
         ticks:isLight?'#475569':'#94a3b8'
       };
