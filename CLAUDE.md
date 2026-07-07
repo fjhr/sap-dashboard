@@ -133,10 +133,12 @@ explícito. Al tocar el tope de páginas devuelve resultado parcial + warning. E
 ## CSS Theme System
 Variables CSS (no Tailwind dark mode):
 ```css
-:root { --bg, --card, --border, --text, --text2, --text3, --inp, --inp-b }
-body.light { /* valores claros */ }
+:root { --bg, --card, --border, --text, --text2, --text3, --inp, --inp-b,
+        --primary, --primary-btn, --up, --dn, --chip-up, --chip-dn, --shadow-card }
+body.light { /* valores claros (enterprise, primario #0a6ed1) */ }
 ```
-Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`, `.badge-low`, `.up`, `.dn`, `.ne`
+Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`, `.badge-low`, `.up`, `.dn`, `.ne`, `.icon`, `.chip`, `.chip-up`, `.chip-dn`, `.chev`
+**Íconos:** sprite SVG inline (`#i-*`) al inicio del body — `<svg class="icon"><use href="#i-nombre"/></svg>`. **Prohibido usar emojis en la UI.**
 
 ## Features implementadas (no reimplementar)
 - ✅ KPIs con comparativa ▲▼% vs período anterior

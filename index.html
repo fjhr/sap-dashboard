@@ -106,6 +106,7 @@
     <symbol id="i-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/></symbol>
     <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
   </svg>
 
   <header class="mb-6">
@@ -1032,7 +1033,7 @@
 
     function renderStockAlerts(alertas,min){
       const el=document.getElementById('stockAlerts');
-      if(!min||!alertas.length){el.innerHTML=min?'<p class="t3 text-xs">✅ Ningún artículo por debajo del mínimo.</p>':'<p class="t3 text-xs">Define un stock mínimo en el filtro para ver alertas.</p>';return;}
+      if(!min||!alertas.length){el.innerHTML=min?'<p class="t3 text-xs flex items-center gap-1"><svg class="icon icon-sm" style="color:var(--up)"><use href="#i-check"/></svg>Ningún artículo por debajo del mínimo.</p>':'<p class="t3 text-xs">Define un stock mínimo en el filtro para ver alertas.</p>';return;}
       el.innerHTML=alertas.slice(0,50).map(a=>`<div class="flex items-center justify-between text-xs"><span class="t2 truncate max-w-xs">${esc(a.nombre||a.codigo)}</span><span class="badge-low ml-2">${fmtNum.format(a.total)} uds</span></div>`).join('');
     }
 
