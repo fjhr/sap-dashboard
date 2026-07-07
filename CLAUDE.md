@@ -60,6 +60,9 @@ const APPS_SCRIPT_URL = '...';  // URL del Web App (ventas/sellers/companies)
 const STOCK_URL       = '...';  // URL del Web App con ?action=stock
 const DAYS_BACK = 14;           // días totales a pedir (7 actuales + 7 anteriores)
 const PERIOD    = 7;            // días de cada período para comparativa
+// Presentación
+let presentationActive = false; // true cuando modo TV está activo
+let presentationTimer  = null;  // ID del setInterval del slideshow
 ```
 
 ## CSS Theme System
@@ -75,6 +78,7 @@ Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`,
 - ✅ Filtros: fecha, cliente, vendedor, bodega, meta diaria, stock mínimo
 - ✅ Drill-down: click en barra del chart → filtra tabla a ese día
 - ✅ Gráficas: barras (período), línea tendencia 14 días, donut comparativo
+- ✅ **Mapa de calor de ventas**: calendario 365 días estilo GitHub, 4 niveles intensidad, tooltip CLP, dark/light
 - ✅ Top 5 clientes
 - ✅ Acordeón Pedidos y Entregas (colapsable)
 - ✅ Exportar CSV (facturas, pedidos, entregas, stock)
@@ -82,6 +86,7 @@ Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`,
 - ✅ Dark/Light mode (`localStorage`)
 - ✅ Multi-empresa (dropdown en header, `?company=ID`)
 - ✅ Refresh visual (spinner en botón ↻)
+- ✅ **Modo presentación / TV**: botón 📺, `requestFullscreen`, slider 10-60s, cicla tabs auto, oculta UI, Escape cancela
 - ✅ PWA (manifest.json + sw.js)
 - ✅ Stock: KPIs, gráfica, tabla dinámica, alertas stock bajo
 

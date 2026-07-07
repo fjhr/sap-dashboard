@@ -23,10 +23,11 @@ Nunca parsear el header `Set-Cookie` para esto.
 - Commits incluyen trailer: `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
 
 ## Features ya implementadas (no duplicar)
-Ventas: KPIs comparativa, filtros (fecha/cliente/vendedor/meta), drill-down charts,
-tendencia 14 días, top clientes, acordeón pedidos/entregas, exportar CSV, imprimir PDF.
-Stock: KPIs, filtro bodega/búsqueda/stock-mínimo, gráfica, tabla, alertas, exportar CSV.
-General: dark/light mode, multi-empresa (?company=ID), refresh visual, PWA.
+**Ventas:** KPIs comparativa, filtros (fecha/cliente/vendedor/meta), drill-down charts,
+tendencia 14 días, mapa de calor 365 días estilo GitHub, top clientes,
+acordeón pedidos/entregas, exportar CSV, imprimir PDF.
+**Stock:** KPIs, filtro bodega/búsqueda/stock-mínimo, gráfica, tabla, alertas, exportar CSV.
+**General:** dark/light mode, multi-empresa (?company=ID), refresh visual, modo presentación/TV (📺 requestFullscreen slider 10-60s), PWA.
 
 ## Endpoints Apps Script
 `?daysBack=N` · `?company=ID` · `?action=sellers` · `?action=companies` · `?action=stock` · `?action=stock&refresh=1`
