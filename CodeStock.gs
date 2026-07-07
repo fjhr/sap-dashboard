@@ -139,7 +139,8 @@ function fetchAll(baseUrl, endpoint, dateFilter, fields, headers) {
   var resp = UrlFetchApp.fetch(url, {
     method: 'get',
     headers: headers,
-    muteHttpExceptions: true
+    muteHttpExceptions: true,
+    validateHttpsCertificates: false
   });
 
   if (resp.getResponseCode() !== 200) {
@@ -167,7 +168,8 @@ function fetchSellersData_(companyDb) {
     var resp = UrlFetchApp.fetch(session.baseUrl + '/SalesPersons?$select=SalesEmployeeCode,SalesEmployeeName', {
       method: 'get',
       headers: session.headers,
-      muteHttpExceptions: true
+      muteHttpExceptions: true,
+      validateHttpsCertificates: false
     });
     if (resp.getResponseCode() !== 200) {
       Logger.log('Error fetching SalesPersons: ' + resp.getContentText());
@@ -234,7 +236,8 @@ function fetchBodegas_(baseUrl, headers) {
   var resp = UrlFetchApp.fetch(baseUrl + '/Warehouses?$select=WarehouseCode,WarehouseName', {
     method: 'get',
     headers: headers,
-    muteHttpExceptions: true
+    muteHttpExceptions: true,
+    validateHttpsCertificates: false
   });
   if (resp.getResponseCode() !== 200) {
     Logger.log('Error fetching Warehouses: ' + resp.getContentText());
@@ -257,7 +260,8 @@ function fetchArticulosStock_(baseUrl, headers) {
     var resp = UrlFetchApp.fetch(url, {
       method: 'get',
       headers: headers,
-      muteHttpExceptions: true
+      muteHttpExceptions: true,
+      validateHttpsCertificates: false
     });
 
     if (resp.getResponseCode() !== 200) {
@@ -386,11 +390,12 @@ function openSAPSession_(companyDb, credOverride) {
     method: 'post',
     contentType: 'application/json',
     payload: JSON.stringify({ CompanyDB: db, UserName: user, Password: password, Language: language }),
-    muteHttpExceptions: true
+    muteHttpExceptions: true,
+    validateHttpsCertificates: false  // permite certificados autofirmados (dev/internal SAP)
   });
 
   if (loginResp.getResponseCode() !== 200) {
-    throw new Error('SAP Login failed: ' + loginResp.getContentText());
+    throw new Error('SAP Login failed (HTTP ' + loginResp.getResponseCode() + '): ' + loginResp.getContentText().substring(0, 300));
   }
 
   var sessionId = JSON.parse(loginResp.getContentText()).SessionId;
@@ -406,7 +411,8 @@ function closeSAPSession_(session) {
     UrlFetchApp.fetch(session.baseUrl + '/Logout', {
       method: 'post',
       headers: session.headers,
-      muteHttpExceptions: true
+      muteHttpExceptions: true,
+      validateHttpsCertificates: false
     });
   } catch (e) {}
 }
