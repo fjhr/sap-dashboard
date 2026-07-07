@@ -20,6 +20,8 @@ var CACHE_TTL = 21600; // 6 horas en segundos
 // --- Config Stock ---
 var STOCK_CACHE_KEY = 'sap_stock_data';
 var SELLERS_CACHE_KEY = 'sap_sellers_data';
+var BP_CACHE_KEY = 'sap_bp_data';
+var BP_MAX_PAGINAS = 50;
 var STOCK_SOLO_CON_STOCK = true; // true = solo articulos con stock > 0
 var STOCK_MAX_PAGINAS = 100;     // tope de seguridad (100 pag x 100 items = 10.000)
 var SALES_MAX_PAGINAS = 10;      // tope ventas (10 pag x 100 docs por tipo, los más recientes primero)
@@ -70,6 +72,8 @@ function doGet(e) {
 
     if (action === 'sellers') return serveSellers_(companyConfig);
     if (action === 'stock') return serveStock_(e, companyConfig);
+    if (action === 'businesspartners') return serveBusinessPartners_(companyConfig);
+
 
     var daysBack = params.daysBack ? parseInt(params.daysBack, 10) : null;
     // Límite superior opcional del rango (yyyy-mm-dd); se ignora si viene malformado
@@ -197,6 +201,72 @@ function serveSellers_(companyConfig) {
   if (!cached && cacheKey) cache.put(cacheKey, JSON.stringify(data), CACHE_TTL);
   return jsonResponse_({ sellers: data });
 }
+
+function serveBusinessPartners_(companyConfig) {
+  var cache = CacheService.getScriptCache();
+  var cacheKey = currentCredOverride_ ? null : buildCacheKey_(BP_CACHE_KEY, companyConfig.id);
+  var cached = cacheKey ? cache.get(cacheKey) : null;
+  var data = cached ? JSON.parse(cached) : fetchBusinessPartnersData_(companyConfig.db);
+  if (!cached && cacheKey) cache.put(cacheKey, JSON.stringify(data), CACHE_TTL);
+  return jsonResponse_({ businesspartners: data });
+}
+
+function fetchBusinessPartnersData_(companyDb) {
+  var session = openSAPSession_(companyDb);
+  try {
+    var fields = 'CardCode,CardName,CardType,Address,Phone1,Email,Balance,CreditLimit';
+    var pageSize = 100;
+    var bps = [];
+    var skip = 0;
+    var paginas = 0;
+
+    while (paginas < BP_MAX_PAGINAS) {
+      var url = session.baseUrl + '/BusinessPartners'
+        + '?$select=' + fields
+        + '&$orderby=CardCode'
+        + '&$top=' + pageSize
+        + '&$skip=' + skip;
+
+      var resp = UrlFetchApp.fetch(url, {
+        method: 'get',
+        headers: session.headers,
+        muteHttpExceptions: true,
+        validateHttpsCertificates: false
+      });
+
+      if (resp.getResponseCode() !== 200) {
+        Logger.log('Error fetching BusinessPartners: ' + resp.getContentText());
+        fetchWarnings_.push('/BusinessPartners HTTP ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
+        break;
+      }
+
+      var json = JSON.parse(resp.getContentText());
+      var pagina = json.value || [];
+      bps = bps.concat(pagina);
+      
+      skip += pagina.length;
+      paginas++;
+      if (pagina.length < pageSize) break;
+    }
+
+    return bps.map(function(bp) {
+      return {
+        cardCode: bp.CardCode,
+        cardName: bp.CardName,
+        cardType: bp.CardType || '',
+        address: bp.Address || '',
+        phone: bp.Phone1 || '',
+        email: bp.Email || '',
+        balance: bp.Balance || 0,
+        creditLimit: bp.CreditLimit || 0
+      };
+    });
+
+  } finally {
+    closeSAPSession_(session);
+  }
+}
+
 
 function fetchSellersData_(companyDb) {
   var session = openSAPSession_(companyDb);
@@ -427,6 +497,14 @@ function refreshCache() {
   } catch(e) {
     Logger.log('Error en refreshCache (stock): ' + e.message);
   }
+  try {
+    var bp = fetchBusinessPartnersData_(getCompanyDb_({}));
+    CacheService.getScriptCache().put(buildCacheKey_(BP_CACHE_KEY, 'DEFAULT'), JSON.stringify(bp), CACHE_TTL);
+    Logger.log('Cache Business Partners actualizado: ' + new Date().toISOString());
+  } catch(e) {
+    Logger.log('Error en refreshCache (BP): ' + e.message);
+}
+
 }
 
 function jsonResponse_(data) {
