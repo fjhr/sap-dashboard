@@ -497,7 +497,7 @@
     }
     function getStockUrl(force){
       const creds = getCredParams();
-      return buildUrl(STOCK_URL,{company:getSelectedCompany(),refresh:force?'1':'',...creds,_t:Date.now()});
+      return buildUrl(STOCK_URL,{action:'stock',company:getSelectedCompany(),refresh:force?'1':'',...creds,_t:Date.now()});
     }
 
     function setLoading(isLoading){
@@ -917,6 +917,8 @@
         const res=await fetch(getStockUrl(force));
         if(!res.ok)throw new Error('HTTP '+res.status);
         stockData=await res.json();
+        // Error JSON de Apps Script (ej: SAP login fallido) — no dejar la pestaña en blanco
+        if(stockData.error){const msg=stockData.message||'Error en Apps Script';stockData=null;throw new Error('⚙️ Error SAP: '+msg);}
         const sel=document.getElementById('filtroBodega');
         const current=sel.value;
         sel.innerHTML='<option value="">Todas las bodegas</option>'+(stockData.bodegas||[]).map(b=>`<option value="${escAttr(b.codigo)}">${esc(b.nombre||b.codigo)}</option>`).join('');
