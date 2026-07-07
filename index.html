@@ -12,6 +12,9 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -20,25 +23,33 @@
     :root {
       --bg:#0f172a;--card:#1e293b;--border:#334155;
       --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
-      --inp:#1e293b;--inp-b:#475569;
+      --inp:#0f172a;--inp-b:#475569;
+      --primary:#818cf8;--primary-btn:#6366f1;
+      --up:#34d399;--dn:#f87171;
+      --chip-up:rgba(52,211,153,.12);--chip-dn:rgba(248,113,113,.12);
+      --shadow-card:0 4px 16px rgba(0,0,0,.3);
     }
     .light{
       --bg:#f1f5f9;--card:#ffffff;--border:#e2e8f0;
       --text:#1e293b;--text2:#475569;--text3:#94a3b8;
       --inp:#ffffff;--inp-b:#cbd5e1;
+      --primary:#0a6ed1;--primary-btn:#0a6ed1;
+      --up:#059669;--dn:#dc2626;
+      --chip-up:rgba(5,150,105,.1);--chip-dn:rgba(220,38,38,.08);
+      --shadow-card:0 1px 3px rgba(15,23,42,.08),0 4px 12px rgba(15,23,42,.05);
     }
-    body{background:var(--bg);color:var(--text);transition:background .3s,color .3s;}
-    .card{background:var(--card);border:1px solid var(--border);transition:background .3s;}
+    body{background:var(--bg);color:var(--text);transition:background .3s,color .3s;font-family:'Inter',system-ui,sans-serif;}
+    .card{background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow-card);transition:background .3s;}
     .t2{color:var(--text2)}.t3{color:var(--text3)}
     .inp{background:var(--inp);border:1px solid var(--inp-b);color:var(--text);}
-    .inp:focus{outline:none;border-color:#6366f1;}
+    .inp:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 25%,transparent);}
     .kv{font-variant-numeric:tabular-nums;}
-    .tab-a{background:#4f46e5;color:#fff;}
+    .tab-a{background:var(--primary-btn);color:#fff;}
     .tab-i{color:var(--text2);}
     .tab-i:hover{color:var(--text);background:var(--card);}
     .alert-card{background:rgba(239,68,68,.1)!important;border-color:rgba(239,68,68,.4)!important;}
     .badge-low{background:#ef4444;color:#fff;font-size:.65rem;padding:1px 5px;border-radius:9999px;display:inline-block;}
-    .up{color:#22c55e}.dn{color:#ef4444}.ne{color:var(--text2)}
+    .up{color:var(--up)}.dn{color:var(--dn)}.ne{color:var(--text2)}
     canvas{max-height:320px;}
     .spinner-inline{display:inline-block;width:.85rem;height:.85rem;border:2px solid currentColor;border-top-color:transparent;border-radius:9999px;animation:spin .8s linear infinite;}
     .accordion-toggle{width:100%;}
