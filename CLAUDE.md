@@ -101,9 +101,16 @@ let presentationTimer  = null;  // ID del setInterval del slideshow
 - Si excede la cobertura (`rawData.dateFrom` / `rawData.dateTo`), `expandRangeIfNeeded(desde,hasta)`
   recalcula `currentDaysBack` (+PERIOD días extra para la comparativa) y dispara `loadData()`.
 - Guard anti-loop: si el rango pedido no cambió respecto al anterior, no reintenta.
-- Backend: `fetchAll` pagina vía `odata.nextLink` con tope `SALES_MAX_PAGINAS = 10`
+- Backend: `fetchAll` pagina con `$top`/`$skip` explícitos y tope `SALES_MAX_PAGINAS = 10`
   (máx ~1000 docs por tipo, los más recientes del rango, `$orderby=DocDate desc`).
 - El `cache.put` de ventas va en try/catch: rangos grandes pueden superar los 100KB por clave.
+
+## Paginación SAP — Patrón crítico
+**NO confiar** en `Prefer: odata.maxpagesize` ni en `odata.nextLink`: hay servidores SAP (el del
+modal ⚙️ de Fernando) que los ignoran y devuelven TODO en una sola respuesta. UrlFetchApp trunca
+en ~50MB y el `JSON.parse` revienta con "Unterminated string in JSON at position 52427762".
+Siempre paginar con `$top=100&$skip=N` + `$orderby` estable, cortando cuando la página llega
+incompleta (`recibidos < pageSize`) o al tope de páginas (`SALES_MAX_PAGINAS`/`STOCK_MAX_PAGINAS`).
 
 ## Credenciales custom (modal ⚙️)
 - Botón ⚙️ en header abre un modal para configurar: SAP URL, CompanyDB, Usuario, Contraseña

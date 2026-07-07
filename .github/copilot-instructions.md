@@ -19,6 +19,11 @@ Nunca parsear el header `Set-Cookie` para esto.
 Los servidores SAP usan certificados autofirmados: **todo** `UrlFetchApp.fetch` hacia SAP
 (login, ventas, sellers, stock, logout) lleva `validateHttpsCertificates: false`.
 
+## Paginación SAP (crítico)
+No confiar en `Prefer: odata.maxpagesize` ni `odata.nextLink` (hay servidores que los ignoran y
+UrlFetchApp trunca a ~50MB → JSON inválido). Paginar siempre con `$top=100&$skip=N` + `$orderby`
+estable, cortando en página incompleta o al tope de páginas.
+
 ## Convenciones
 - Credenciales SAP en **Script Properties** o en el modal ⚙️ (localStorage, solo uso interno/dev)
 - Cache keys incluyen company ID: `buildCacheKey_(base, companyId, suffix)`. Con credOverride → caché desactivada. Suffix de ventas incluye `daysBack` y `dateTo`
@@ -32,9 +37,9 @@ Los servidores SAP usan certificados autofirmados: **todo** `UrlFetchApp.fetch` 
 ## Features ya implementadas (no duplicar)
 **Ventas:** KPIs comparativa, filtros (fecha/cliente/vendedor/meta), rango histórico dinámico
 (filtros de fecha fuera de la ventana descargada recargan desde SAP vía `expandRangeIfNeeded` +
-`dateTo` + paginación `odata.nextLink`), drill-down charts, tendencia 14 días, mapa de calor
-estilo GitHub (rango dinámico por filtros de fecha), top clientes, acordeón
-facturas/pedidos/entregas (facturas inicia expandido), exportar CSV, imprimir PDF.
+`dateTo`), drill-down charts, tendencia 14 días, mapa de calor estilo GitHub (rango dinámico por
+filtros de fecha), top clientes, acordeón facturas/pedidos/entregas (facturas inicia expandido),
+exportar CSV, imprimir PDF.
 **Stock:** KPIs, filtro bodega/búsqueda/stock-mínimo, gráfica, tabla, alertas, exportar CSV.
 **General:** dark/light mode, multi-empresa (?company=ID), refresh visual, modal ⚙️ credenciales SAP (localStorage, punto naranja indicador), modo presentación/TV (📺 requestFullscreen slider 10-60s), PWA.
 

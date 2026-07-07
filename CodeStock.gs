@@ -148,15 +148,23 @@ function fetchSAPData(daysBackOverride, companyDb, dateTo) {
 function fetchAll(baseUrl, endpoint, dateFilter, fields, headers, dateTo) {
   var filter = "DocDate ge '" + dateFilter + "'";
   if (dateTo) filter += " and DocDate le '" + dateTo + "'";
-  var url = baseUrl + endpoint
-    + "?$filter=" + filter
-    + "&$select=" + fields
-    + "&$orderby=DocDate desc";
 
+  // Paginación explícita con $top/$skip: no todos los servidores SAP respetan el
+  // Prefer odata.maxpagesize, y una respuesta única puede superar los ~50MB que
+  // tolera UrlFetchApp (JSON truncado => "Unterminated string in JSON")
+  var pageSize = 100;
   var docs = [];
   var paginas = 0;
+  var recibidos = pageSize;
 
-  while (url && paginas < SALES_MAX_PAGINAS) {
+  while (recibidos === pageSize && paginas < SALES_MAX_PAGINAS) {
+    var url = baseUrl + endpoint
+      + "?$filter=" + filter
+      + "&$select=" + fields
+      + "&$orderby=DocDate desc"
+      + "&$top=" + pageSize
+      + "&$skip=" + (paginas * pageSize);
+
     var resp = UrlFetchApp.fetch(url, {
       method: 'get',
       headers: headers,
@@ -171,10 +179,9 @@ function fetchAll(baseUrl, endpoint, dateFilter, fields, headers, dateTo) {
     }
 
     var json = JSON.parse(resp.getContentText());
-    docs = docs.concat(json.value || []);
-
-    var next = json['@odata.nextLink'] || json['odata.nextLink'] || null;
-    url = next ? ((next.indexOf('http') === 0) ? next : baseUrl + '/' + String(next).replace(/^\//, '')) : null;
+    var pagina = json.value || [];
+    docs = docs.concat(pagina);
+    recibidos = pagina.length;
     paginas++;
   }
 
@@ -234,6 +241,7 @@ function serveStock_(e, companyConfig) {
 }
 
 function fetchStockData(companyDb) {
+  fetchWarnings_ = [];
   var session = openSAPSession_(companyDb);
 
   var bodegas = [];
@@ -249,7 +257,7 @@ function fetchStockData(companyDb) {
   var unidades = 0;
   articulos.forEach(function(a) { unidades += a.total; });
 
-  return {
+  var result = {
     lastUpdated: new Date().toISOString(),
     totales: {
       articulos: articulos.length,
@@ -259,6 +267,8 @@ function fetchStockData(companyDb) {
     bodegas: bodegas,
     articulos: articulos
   };
+  if (fetchWarnings_.length) result.warnings = fetchWarnings_;
+  return result;
 }
 
 function fetchBodegas_(baseUrl, headers) {
@@ -270,6 +280,7 @@ function fetchBodegas_(baseUrl, headers) {
   });
   if (resp.getResponseCode() !== 200) {
     Logger.log('Error fetching Warehouses: ' + resp.getContentText());
+    fetchWarnings_.push('/Warehouses HTTP ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
     return [];
   }
   var json = JSON.parse(resp.getContentText());
@@ -280,12 +291,21 @@ function fetchBodegas_(baseUrl, headers) {
 
 function fetchArticulosStock_(baseUrl, headers) {
   var filtro = STOCK_SOLO_CON_STOCK ? '&$filter=QuantityOnStock gt 0' : '';
-  var url = baseUrl + '/Items?$select=ItemCode,ItemName,QuantityOnStock,ItemWarehouseInfoCollection' + filtro;
 
+  // Paginación explícita con $top/$skip (ver comentario en fetchAll): la colección
+  // ItemWarehouseInfoCollection es pesada y sin paginar puede superar los 50MB
+  var pageSize = 100;
   var articulos = [];
   var paginas = 0;
+  var recibidos = pageSize;
 
-  while (url && paginas < STOCK_MAX_PAGINAS) {
+  while (recibidos === pageSize && paginas < STOCK_MAX_PAGINAS) {
+    var url = baseUrl + '/Items?$select=ItemCode,ItemName,QuantityOnStock,ItemWarehouseInfoCollection'
+      + filtro
+      + '&$orderby=ItemCode'
+      + '&$top=' + pageSize
+      + '&$skip=' + (paginas * pageSize);
+
     var resp = UrlFetchApp.fetch(url, {
       method: 'get',
       headers: headers,
@@ -295,12 +315,22 @@ function fetchArticulosStock_(baseUrl, headers) {
 
     if (resp.getResponseCode() !== 200) {
       Logger.log('Error fetching Items: ' + resp.getContentText());
+      fetchWarnings_.push('/Items HTTP ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
       break;
     }
 
-    var json = JSON.parse(resp.getContentText());
+    var json;
+    try {
+      json = JSON.parse(resp.getContentText());
+    } catch (e) {
+      // Página truncada por el límite de ~50MB de UrlFetchApp
+      Logger.log('Respuesta /Items no parseable (pagina ' + paginas + '): ' + e.message);
+      fetchWarnings_.push('/Items página ' + paginas + ' no parseable (respuesta >50MB?): ' + e.message);
+      break;
+    }
 
-    (json.value || []).forEach(function(item) {
+    var pagina = json.value || [];
+    pagina.forEach(function(item) {
       var porBodega = {};
       (item.ItemWarehouseInfoCollection || []).forEach(function(w) {
         if (w.InStock) porBodega[w.WarehouseCode] = w.InStock;
@@ -313,12 +343,7 @@ function fetchArticulosStock_(baseUrl, headers) {
       });
     });
 
-    var next = json['@odata.nextLink'] || json['odata.nextLink'] || null;
-    if (next) {
-      url = (next.indexOf('http') === 0) ? next : baseUrl + '/' + String(next).replace(/^\//, '');
-    } else {
-      url = null;
-    }
+    recibidos = pagina.length;
     paginas++;
   }
 
