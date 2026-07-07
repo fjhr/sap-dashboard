@@ -19,8 +19,8 @@ PWA: manifest.json + sw.js
 ## Archivos clave
 | Archivo | Descripción |
 |---------|-------------|
-| `CodeStock.gs` | Backend activo (24 funciones, 420 líneas). NUNCA usar `Code.gs` |
-| `index.html` | Dashboard completo (709 líneas, 51 funciones JS) |
+| `CodeStock.gs` | Backend activo (25 funciones, ~430 líneas). NUNCA usar `Code.gs` |
+| `index.html` | Dashboard completo (~930 líneas, ~62 funciones JS) |
 | `manifest.json` | PWA manifest |
 | `sw.js` | Service Worker (cache-first static, network-first API) |
 
@@ -33,6 +33,7 @@ PWA: manifest.json + sw.js
 | `GET /exec?action=companies` | Lista empresas configuradas (sin contraseñas) |
 | `GET /exec?action=stock` | Stock por artículo y bodega (caché 6h) |
 | `GET /exec?action=stock&refresh=1` | Stock forzando lectura fresca |
+| `GET /exec?sapUrl=...&sapDb=...&sapUser=...&sapPass=...` | Override de credenciales SAP por-request (sin caché) |
 
 ## Script Properties requeridas
 ```
@@ -65,6 +66,17 @@ let presentationActive = false; // true cuando modo TV está activo
 let presentationTimer  = null;  // ID del setInterval del slideshow
 ```
 
+## Credenciales custom (modal ⚙️)
+- Botón ⚙️ en header abre un modal para configurar: SAP URL, CompanyDB, Usuario, Contraseña
+- Se guardan en `localStorage` bajo la key `sap_credentials` (JSON: `{sapUrl, sapDb, sapUser, sapPass}`)
+- `getCredParams()` → retorna `{}` si no hay creds, o el objeto con solo los campos no vacíos
+- Todos los builders de URL (`getSalesUrl`, `getSellersUrl`, `getStockUrl`) hacen spread de `getCredParams()`
+- En Apps Script: `currentCredOverride_` (var módulo) se setea en `doGet` con los params recibidos
+- Si hay override: **caché deshabilitada** (key `null`) — cada request va directo a SAP
+- Punto naranja en el botón ⚙️ indica que hay credenciales custom activas
+- `saveSettings()` → guarda + recarga datos automáticamente
+- `clearSettings()` → borra localStorage + vuelve a Script Properties
+
 ## CSS Theme System
 Variables CSS (no Tailwind dark mode):
 ```css
@@ -78,9 +90,9 @@ Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`,
 - ✅ Filtros: fecha, cliente, vendedor, bodega, meta diaria, stock mínimo
 - ✅ Drill-down: click en barra del chart → filtra tabla a ese día
 - ✅ Gráficas: barras (período), línea tendencia 14 días, donut comparativo
-- ✅ **Mapa de calor de ventas**: calendario 365 días estilo GitHub, 4 niveles intensidad, tooltip CLP, dark/light
+- ✅ **Mapa de calor de ventas**: calendario dinámico estilo GitHub, 4 niveles intensidad, tooltip CLP, dark/light, rango por filtros de fecha
 - ✅ Top 5 clientes
-- ✅ Acordeón Pedidos y Entregas (colapsable)
+- ✅ Acordeón Pedidos, Entregas y Facturas (colapsable, facturas inicia expandido)
 - ✅ Exportar CSV (facturas, pedidos, entregas, stock)
 - ✅ Imprimir / PDF (`@media print`)
 - ✅ Dark/Light mode (`localStorage`)
@@ -89,6 +101,7 @@ Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`,
 - ✅ **Modo presentación / TV**: botón 📺, `requestFullscreen`, slider 10-60s, cicla tabs auto, oculta UI, Escape cancela
 - ✅ PWA (manifest.json + sw.js)
 - ✅ Stock: KPIs, gráfica, tabla dinámica, alertas stock bajo
+- ✅ **Modal ⚙️ credenciales SAP**: configura URL/DB/user/pass en localStorage, punto naranja indicador, recarga al guardar
 
 ## Roadmap pendiente
 - [ ] Reporte automático por email (Apps Script trigger diario)
@@ -98,12 +111,13 @@ Clases: `.card`, `.t2`, `.t3`, `.inp`, `.tab-a`, `.tab-i`, `.kv`, `.alert-card`,
 - [ ] Filtro por familia de artículos (`ItemsGroupCode`)
 
 ## Reglas del proyecto
-1. **NUNCA hardcodear credenciales** — siempre Script Properties
+1. **NUNCA hardcodear credenciales** en `index.html` — usar Script Properties o modal ⚙️ (localStorage)
 2. **NUNCA modificar `Code.gs`** — está deprecado
 3. **Tras cambiar `CodeStock.gs`**: crear nueva versión en Deploy → Manage Deployments
 4. **Al hacer push**: incluir trailer `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`
 5. **Cache keys**: incluyen company ID → `buildCacheKey_(base, companyId, suffix)`
-6. **No reimplementar** funciones que ya existen (ver lista de 51 funciones en index.html)
+6. **No reimplementar** funciones que ya existen
+7. **Con credOverride**: `currentCredOverride_` se setea en `doGet`, NO se pasa como parámetro entre funciones
 
 ## Comandos útiles
 ```bash

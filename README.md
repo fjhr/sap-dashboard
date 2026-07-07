@@ -23,7 +23,7 @@ Dashboard web de **Ventas** y **Stock** para SAP Business One. Publicado en GitH
 | Donut comparativo | Período actual vs período anterior en proporción |
 | **Mapa de calor** | Calendario año completo estilo GitHub, 4 niveles de intensidad, tooltip con monto CLP |
 | Top 5 clientes | Ranking por monto con barra de progreso |
-| Tabla de Facturas | DocNum, Cliente, Fecha, Total, Estado + Exportar CSV |
+| Tabla de Facturas | Acordeón colapsable ▼/▲, inicia expandido + Exportar CSV |
 | Acordeón Pedidos | Colapsable ▼/▲ con tabla completa + Exportar CSV |
 | Acordeón Entregas | Colapsable ▼/▲ con tabla completa + Exportar CSV |
 | Imprimir / PDF | `@media print` limpio: solo tablas, sin UI; botón 🖨️ |
@@ -47,6 +47,7 @@ Dashboard web de **Ventas** y **Stock** para SAP Business One. Publicado en GitH
 | Dark / Light mode | Toggle 🌙/☀️ con persistencia en `localStorage` |
 | Multi-empresa | Dropdown en header; configura `SAP_COMPANIES` en Script Properties |
 | Refresh visual | Botón ↻ con spinner + "Actualizando..." bloqueado durante carga |
+| **⚙️ Credenciales SAP** | Modal para configurar URL/CompanyDB/Usuario/Contraseña sin tocar el código; persistidas en `localStorage`; punto naranja indica override activo |
 | **Modo presentación** | Botón 📺: pantalla completa, slider 10-60s, cicla Ventas↔Stock, oculta UI, Escape cancela |
 | PWA | Instalable en móvil/escritorio; funciona offline con últimos datos |
 
@@ -159,6 +160,7 @@ const STOCK_URL       = 'https://script.google.com/macros/s/TU_ID/exec?action=st
 | `GET /exec?action=companies` | Lista de empresas configuradas (sin contraseñas) |
 | `GET /exec?action=stock` | Stock por artículo y bodega (caché 6h) |
 | `GET /exec?action=stock&refresh=1` | Stock forzando lectura fresca |
+| `GET /exec?sapUrl=...&sapDb=...&sapUser=...&sapPass=...` | **Override de credenciales SAP** — útil para multi-servidor; desactiva caché automáticamente |
 
 **Respuesta ventas:**
 ```json
@@ -206,12 +208,13 @@ function clearStockCache() {
 | Error | Causa | Solución |
 |-------|-------|----------|
 | Arrays vacíos | Fechas no coinciden con datos SAP | Aumentar `SAP_DAYS_BACK` |
-| `SAP Login failed` | Credenciales incorrectas | Verificar Script Properties |
+| `SAP Login failed` | Credenciales incorrectas | Verificar Script Properties o usar modal ⚙️ |
 | Dashboard en blanco | URL de Apps Script incorrecta | Verificar `APPS_SCRIPT_URL` / `STOCK_URL` |
 | Vendedores vacíos | `/SalesPersons` sin datos | Normal en DBs de prueba; filtro se oculta |
 | Empresas no aparecen | `SAP_COMPANIES` no configurada | Agregar Script Property con JSON |
 | Mapa de calor gris | Datos < 14 días cargados | Normal; solo días con datos se colorean |
 | Modo TV no abre fullscreen | Política del navegador | Requiere interacción del usuario previa (ya cumplida con el click) |
+| Punto naranja en ⚙️ | Credenciales custom activas en localStorage | Usar ⚙️ → Limpiar para volver a Script Properties |
 
 ---
 
@@ -222,6 +225,7 @@ function clearStockCache() {
 - ✅ `?action=companies` expone solo `id` y `name`, nunca contraseña ni `db`
 - ✅ Web App solo de lectura; HTML 100% estático sin credenciales
 - ✅ Service Worker cachea solo assets estáticos; API siempre va a la red
+- ⚠️ **Modal ⚙️**: credenciales custom se transmiten por HTTPS como query params → solo para uso interno/dev. No usar en redes públicas sin VPN. Limpiar con el botón 🗑 cuando ya no se necesiten.
 
 ---
 
