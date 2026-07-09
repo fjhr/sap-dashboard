@@ -6,12 +6,18 @@
  *  1. Script Properties: SAP_BASE_URL, SAP_COMPANY_DB, SAP_USER,
  *     SAP_PASSWORD, SAP_LANGUAGE (igual que antes)
  *  2. Web App: Execute as "Me", Access "Anyone"
- *  3. Ejecutar setupTrigger() una vez (el trigger ahora refresca ventas Y stock)
+ *  3. Ejecutar setupTrigger() una vez (ventas cada 6h + tramo de stock cada 5 min)
  *
  * Endpoints:
  *  - URL                  -> ventas (igual que siempre)
  *  - URL?action=stock     -> stock por bodega
  *  - URL?action=stock&refresh=1 -> stock forzando lectura fresca de SAP
+ *
+ * Stock troceado: con catálogos grandes, traer TODOS los artículos (con el detalle
+ * por bodega de ItemWarehouseInfoCollection) no entra en los 6 min que Apps Script
+ * permite por ejecución. runStockChunk_ avanza un tramo acotado en tiempo por llamada
+ * y persiste el progreso (skip) en caché; el trigger refreshStockChunk_ lo continúa
+ * cada 5 min hasta completar el catálogo, momento en que publica el resultado final.
  */
 
 var CACHE_KEY = 'sap_sales_data';
@@ -21,7 +27,8 @@ var CACHE_TTL = 21600; // 6 horas en segundos
 var STOCK_CACHE_KEY = 'sap_stock_data';
 var SELLERS_CACHE_KEY = 'sap_sellers_data';
 var STOCK_SOLO_CON_STOCK = true; // true = solo articulos con stock > 0
-var STOCK_MAX_PAGINAS = 100;     // tope de seguridad (100 pag x 100 items = 10.000)
+var STOCK_MAX_PAGINAS = 100;     // tope de seguridad por tramo (100 pag x 50 items = 5.000)
+var STOCK_CHUNK_BUDGET_MS = 4.5 * 60 * 1000; // margen bajo el tope de 6 min de Apps Script
 var SALES_MAX_PAGINAS = 10;      // tope ventas (10 pag x 100 docs por tipo, los más recientes primero)
 
 // Override de credenciales por-request (se setea en doGet, stateless entre requests)
@@ -229,27 +236,108 @@ function fetchSellersData_(companyDb) {
 // ============================================================
 
 function serveStock_(e, companyConfig) {
-  // Siempre forzar lectura fresca cuando hay credenciales custom
-  var forzar = currentCredOverride_ || (e && e.parameter && e.parameter.refresh === '1');
-  var cacheKey = currentCredOverride_ ? null : buildCacheKey_(STOCK_CACHE_KEY, companyConfig.id);
-  var data = forzar ? null : leerStockCache_(cacheKey);
-  if (!data) {
-    data = fetchStockData(companyConfig.db);
-    if (cacheKey) guardarStockCache_(data, cacheKey);
+  var companyDb = companyConfig.db;
+  var companyId = companyConfig.id;
+  var forzar = e && e.parameter && e.parameter.refresh === '1';
+
+  // Credenciales custom: nunca cachear (cada usuario puede tener creds distintas);
+  // se corre un único tramo acotado y se devuelve lo que se alcance a traer.
+  if (currentCredOverride_) {
+    return jsonResponse_(runStockChunk_(companyDb, null, STOCK_CHUNK_BUDGET_MS));
   }
-  return jsonResponse_(data);
+
+  var finalKey = buildCacheKey_(STOCK_CACHE_KEY, companyId);
+  var cached = forzar ? null : leerStockCache_(finalKey);
+  if (cached) return jsonResponse_(cached);
+
+  return jsonResponse_(runStockChunk_(companyDb, companyId, STOCK_CHUNK_BUDGET_MS));
 }
 
+/**
+ * Avanza un tramo (<= budgetMs) del refresco de stock. Si con eso alcanza a
+ * recorrer todo el catálogo, publica y retorna el resultado final. Si no,
+ * persiste el progreso (skip) para el próximo tramo y retorna lo mejor
+ * disponible (caché anterior, o el resultado parcial de este tramo) con un
+ * warning explicando que sigue en curso — así el usuario nunca se queda sin
+ * respuesta ni con un "Failed to fetch" mientras el catálogo es grande.
+ */
+function runStockChunk_(companyDb, companyId, budgetMs) {
+  var finalKey = companyId ? buildCacheKey_(STOCK_CACHE_KEY, companyId) : null;
+  var wipKey = companyId ? buildCacheKey_(STOCK_CACHE_KEY, companyId, 'wip') : null;
+  var deadline = Date.now() + budgetMs;
+  var previous = finalKey ? leerStockCache_(finalKey) : null;
+
+  fetchWarnings_ = [];
+  var session = openSAPSession_(companyDb);
+  var state, page;
+  try {
+    state = (wipKey && leerStockCache_(wipKey)) || null;
+    if (!state) state = { skip: 0, articulos: [], bodegas: fetchBodegas_(session.baseUrl, session.headers) };
+    page = fetchArticulosStockPage_(session.baseUrl, session.headers, state.skip, deadline);
+    state.articulos = state.articulos.concat(page.articulos);
+    state.skip = page.nextSkip;
+  } finally {
+    closeSAPSession_(session);
+  }
+
+  if (page.done) {
+    var unidades = 0;
+    state.articulos.forEach(function(a) { unidades += a.total; });
+    var finalData = {
+      lastUpdated: new Date().toISOString(),
+      totales: {
+        articulos: state.articulos.length,
+        unidades: Math.round(unidades * 100) / 100,
+        bodegas: state.bodegas.length
+      },
+      bodegas: state.bodegas,
+      articulos: state.articulos
+    };
+    if (fetchWarnings_.length) finalData.warnings = fetchWarnings_;
+    if (finalKey) { guardarStockCache_(finalData, finalKey); borrarStockCache_(wipKey); }
+    return finalData;
+  }
+
+  // No alcanzó a completar el catálogo en este tramo
+  if (wipKey) guardarStockCache_(state, wipKey);
+  var aviso = companyId
+    ? 'Actualizando stock desde SAP (catálogo grande) — se completa en varios tramos de '
+      + Math.round(budgetMs / 60000) + ' min. '
+      + (previous ? 'Mostrando datos de ' + previous.lastUpdated + ' mientras tanto.' : 'Resultado parcial, volvé a intentar en unos minutos para completar.')
+    : 'La consulta alcanzó el tiempo máximo (' + Math.round(budgetMs / 60000) + ' min) — resultado parcial, volvé a intentar para continuar.';
+
+  if (previous) {
+    previous.warnings = (previous.warnings || []).concat(fetchWarnings_, [aviso]);
+    return previous;
+  }
+  var unidadesParcial = 0;
+  state.articulos.forEach(function(a) { unidadesParcial += a.total; });
+  return {
+    lastUpdated: null,
+    totales: {
+      articulos: state.articulos.length,
+      unidades: Math.round(unidadesParcial * 100) / 100,
+      bodegas: (state.bodegas || []).length
+    },
+    bodegas: state.bodegas || [],
+    articulos: state.articulos,
+    warnings: fetchWarnings_.concat([aviso])
+  };
+}
+
+/** Uso manual (editor): pull sincrónico completo, sin tope de tiempo (puede exceder los 6 min de Apps Script con catálogos grandes) */
 function fetchStockData(companyDb) {
   fetchWarnings_ = [];
   var session = openSAPSession_(companyDb);
-
-  var bodegas = [];
-  var articulos = [];
-
+  var bodegas = [], articulos = [];
   try {
     bodegas = fetchBodegas_(session.baseUrl, session.headers);
-    articulos = fetchArticulosStock_(session.baseUrl, session.headers);
+    var skip = 0, page;
+    do {
+      page = fetchArticulosStockPage_(session.baseUrl, session.headers, skip, Infinity);
+      articulos = articulos.concat(page.articulos);
+      skip = page.nextSkip;
+    } while (!page.done);
   } finally {
     closeSAPSession_(session);
   }
@@ -289,7 +377,13 @@ function fetchBodegas_(baseUrl, headers) {
   });
 }
 
-function fetchArticulosStock_(baseUrl, headers) {
+/**
+ * Trae artículos de stock desde skipStart, deteniéndose ANTES de superar `deadline`
+ * (Date.now() en ms) o el tope de páginas de este tramo. Retorna {articulos, nextSkip, done}:
+ * done=true cuando se llegó al final real del catálogo (o a un error/tope que no vale
+ * la pena reintentar); done=false cuando se cortó por tiempo y hay que seguir en otro tramo.
+ */
+function fetchArticulosStockPage_(baseUrl, headers, skipStart, deadline) {
   var filtro = STOCK_SOLO_CON_STOCK ? '&$filter=' + encodeURIComponent('QuantityOnStock gt 0') : '';
 
   // Paginación explícita con $top/$skip (ver comentario en fetchAll) y tamaño de página
@@ -298,10 +392,13 @@ function fetchArticulosStock_(baseUrl, headers) {
   // los ~50MB de UrlFetchApp (JSON truncado). Si la página no parsea, se reduce y reintenta.
   var pageSize = 50;
   var articulos = [];
-  var skip = 0;
+  var skip = skipStart || 0;
   var paginas = 0;
+  var done = false;
 
   while (paginas < STOCK_MAX_PAGINAS) {
+    if (Date.now() >= deadline) break; // se acabó el tiempo de este tramo; continúa el próximo
+
     var url = baseUrl + '/Items?$select=ItemCode,ItemName,QuantityOnStock,ItemWarehouseInfoCollection'
       + filtro
       + '&$orderby=ItemCode'
@@ -318,6 +415,7 @@ function fetchArticulosStock_(baseUrl, headers) {
     if (resp.getResponseCode() !== 200) {
       Logger.log('Error fetching Items: ' + resp.getContentText());
       fetchWarnings_.push('/Items HTTP ' + resp.getResponseCode() + ': ' + resp.getContentText().substring(0, 200));
+      done = true; // error real, no seguir reintentando tramo tras tramo
       break;
     }
 
@@ -332,6 +430,7 @@ function fetchArticulosStock_(baseUrl, headers) {
         continue; // reintenta el mismo skip con página más chica
       }
       fetchWarnings_.push('/Items: la respuesta supera 50MB incluso pidiendo 1 artículo — el servidor ignora $top o el artículo es gigante: ' + e.message);
+      done = true;
       break;
     }
 
@@ -351,14 +450,14 @@ function fetchArticulosStock_(baseUrl, headers) {
 
     skip += pagina.length;
     paginas++;
-    if (pagina.length < pageSize) break; // última página
+    if (pagina.length < pageSize) { done = true; break; } // última página real
   }
 
   if (paginas >= STOCK_MAX_PAGINAS) {
-    fetchWarnings_.push('/Items: resultado parcial (' + articulos.length + ' artículos) — se alcanzó el tope de ' + STOCK_MAX_PAGINAS + ' páginas');
+    fetchWarnings_.push('/Items: tramo detenido en el tope de ' + STOCK_MAX_PAGINAS + ' páginas (seguirá en el próximo tramo)');
   }
 
-  return articulos;
+  return { articulos: articulos, nextSkip: skip, done: done };
 }
 
 // --- Cache de stock en trozos (limite de 100KB por clave) ---
@@ -390,6 +489,17 @@ function leerStockCache_(cacheBaseKey) {
   try { return JSON.parse(texto); } catch (e) { return null; }
 }
 
+function borrarStockCache_(cacheBaseKey) {
+  if (!cacheBaseKey) return;
+  var cache = CacheService.getScriptCache();
+  var meta = cache.get(cacheBaseKey + '_META');
+  if (!meta) return;
+  var partes = parseInt(meta, 10);
+  var keys = [cacheBaseKey + '_META'];
+  for (var i = 0; i < partes; i++) keys.push(cacheBaseKey + '_' + i);
+  cache.removeAll(keys);
+}
+
 /** Prueba manual del stock: ejecutar desde el editor y revisar el registro */
 function testStock() {
   var data = fetchStockData(getCompanyDb_({}));
@@ -401,19 +511,22 @@ function testStock() {
 }
 
 // ============================================================
-// TRIGGER (actualizado: refresca ventas Y stock)
+// TRIGGERS — ventas cada 6h (síncrono, cabe en una ejecución) +
+// stock en tramos cada 5 min (runStockChunk_ persiste el avance)
 // ============================================================
 
-/** Ejecutar una vez para crear el trigger de actualización cada 6 horas */
+/** Ejecutar una vez para (re)crear ambos triggers */
 function setupTrigger() {
   ScriptApp.getProjectTriggers().forEach(function(t) {
-    if (t.getHandlerFunction() === 'refreshCache') ScriptApp.deleteTrigger(t);
+    var fn = t.getHandlerFunction();
+    if (fn === 'refreshCache' || fn === 'refreshStockChunk_') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('refreshCache').timeBased().everyHours(6).create();
-  Logger.log('Trigger creado: refreshCache cada 6 horas');
+  ScriptApp.newTrigger('refreshStockChunk_').timeBased().everyMinutes(5).create();
+  Logger.log('Triggers creados: refreshCache (ventas) cada 6h, refreshStockChunk_ (stock) cada 5 min');
 }
 
-/** Invocado por el trigger para actualizar ambos cachés */
+/** Invocado por el trigger de 6h para refrescar el caché de ventas */
 function refreshCache() {
   try {
     fetchAndCache(null, buildCacheKey_(CACHE_KEY, 'DEFAULT'), getCompanyDb_({}));
@@ -421,11 +534,29 @@ function refreshCache() {
   } catch(e) {
     Logger.log('Error en refreshCache (ventas): ' + e.message);
   }
+}
+
+/**
+ * Invocado cada 5 min: si el caché de stock sigue vigente (< CACHE_TTL) y no hay
+ * un refresco a medio camino, no hace nada. Si no, avanza (o inicia) un tramo de
+ * runStockChunk_ — así catálogos grandes se terminan de refrescar en background
+ * sin depender de que una sola ejecución alcance a recorrer todo /Items.
+ */
+function refreshStockChunk_() {
+  var companyId = 'DEFAULT';
+  var finalKey = buildCacheKey_(STOCK_CACHE_KEY, companyId);
+  var wipKey = buildCacheKey_(STOCK_CACHE_KEY, companyId, 'wip');
+  var enCurso = !!leerStockCache_(wipKey);
+  if (!enCurso) {
+    var actual = leerStockCache_(finalKey);
+    var edadMs = actual && actual.lastUpdated ? (Date.now() - new Date(actual.lastUpdated).getTime()) : Infinity;
+    if (edadMs < CACHE_TTL * 1000) return; // aún vigente, nada que hacer
+  }
   try {
-    guardarStockCache_(fetchStockData(getCompanyDb_({})), buildCacheKey_(STOCK_CACHE_KEY, 'DEFAULT'));
-    Logger.log('Cache stock actualizado: ' + new Date().toISOString());
-  } catch(e) {
-    Logger.log('Error en refreshCache (stock): ' + e.message);
+    runStockChunk_(getCompanyDb_({}), companyId, STOCK_CHUNK_BUDGET_MS);
+    Logger.log('Tramo de refresco de stock ejecutado: ' + new Date().toISOString());
+  } catch (e) {
+    Logger.log('Error en refreshStockChunk_: ' + e.message);
   }
 }
 

@@ -57,7 +57,6 @@
     .tab-i{color:var(--text2);}
     .tab-i:hover{color:var(--text);background:var(--card);}
     .alert-card{background:var(--chip-dn)!important;border-color:var(--dn)!important;}
-    .badge-low{background:var(--dn);color:#fff;font-size:.65rem;padding:1px 5px;border-radius:9999px;display:inline-block;}
     .up{color:var(--up)}.dn{color:var(--dn)}.ne{color:var(--text2)}
     canvas{max-height:320px;}
     .spinner-inline{display:inline-block;width:.85rem;height:.85rem;border:2px solid currentColor;border-top-color:transparent;border-radius:9999px;animation:spin .8s linear infinite;}
@@ -403,7 +402,7 @@
     // =========================================================
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4hbghlmaLSHIolQ11c5cGafG-OJbTlBkKRS4PvRFQO_l3Pr4ocwEnUiedq2R9qkUX/exec';
     //const STOCK_URL       = 'https://script.google.com/macros/s/AKfycbwMOqbjNAgWsvwk6nHalxGZK8XkK8EEXt7XdbA_XeFT-GsW6NOoQkJm9-snx0GCb-4/exec?action=stock';
-    const STOCK_URL       = 'https://script.google.com/macros/s/AKfycby4hbghlmaLSHIolQ11c5cGafG-OJbTlBkKRS4PvRFQO_l3Pr4ocwEnUiedq2R9qkUX/exec';
+    const STOCK_URL       = 'https://script.google.com/macros/s/AKfycbwMOqbjNAgWsvwk6nHalxGZK8XkK8EEXt7XdbA_XeFT-GsW6NOoQkJm9-snx0GCb-4/exec?action=stock';
     const DAYS_BACK = 14; // días totales a pedir (14 = 7 actuales + 7 anteriores)
     const PERIOD    = 7;  // días de cada período para comparativa
     const MAX_FILAS = 300;
@@ -1035,7 +1034,7 @@
     function renderStockAlerts(alertas,min){
       const el=document.getElementById('stockAlerts');
       if(!min||!alertas.length){el.innerHTML=min?'<p class="t3 text-xs flex items-center gap-1"><svg class="icon icon-sm" style="color:var(--up)"><use href="#i-check"/></svg>Ningún artículo por debajo del mínimo.</p>':'<p class="t3 text-xs">Define un stock mínimo en el filtro para ver alertas.</p>';return;}
-      el.innerHTML=alertas.slice(0,50).map(a=>`<div class="flex items-center justify-between text-xs"><span class="t2 truncate max-w-xs">${esc(a.nombre||a.codigo)}</span><span class="badge-low ml-2">${fmtNum.format(a.total)} uds</span></div>`).join('');
+      el.innerHTML=alertas.slice(0,50).map(a=>`<div class="flex items-center justify-between text-xs"><span class="t2 truncate max-w-xs">${esc(a.nombre||a.codigo)}</span><span class="chip chip-dn ml-2"><svg class="icon" style="width:11px;height:11px"><use href="#i-alert"/></svg>${fmtNum.format(a.total)} uds</span></div>`).join('');
     }
 
     function renderStockChart(data){
@@ -1061,7 +1060,7 @@
           <td class="py-1.5 pr-3 font-mono text-xs">${esc(a.codigo)}</td>
           <td class="py-1.5 pr-3 text-xs max-w-xs truncate">${esc(a.nombre||'—')}</td>
           ${cols.map(b=>`<td class="py-1.5 pr-3 text-xs text-right">${fmtNum.format((a.bodegas||{})[b.codigo]||0)}</td>`).join('')}
-          <td class="py-1.5 text-xs text-right font-semibold">${fmtNum.format(a.total)}${bajo?' <span class="badge-low">bajo mín.</span>':''}</td></tr>`;
+          <td class="py-1.5 text-xs text-right font-semibold">${fmtNum.format(a.total)}${bajo?' <span class="chip chip-dn"><svg class="icon" style="width:11px;height:11px"><use href="#i-alert"/></svg>bajo mín.</span>':''}</td></tr>`;
       }).join('');
     }
 
