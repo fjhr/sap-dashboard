@@ -108,6 +108,7 @@
     <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></symbol>
   </svg>
 
   <header class="mb-6">
@@ -171,6 +172,7 @@
 
   <nav class="mb-6 flex gap-2">
     <button id="btnTabVentas" onclick="switchTab('ventas')" class="tab-a px-4 py-2 rounded-lg text-sm font-semibold transition"><svg class="icon icon-sm"><use href="#i-coins"/></svg> Ventas</button>
+    <button id="btnTabCompras" onclick="switchTab('compras')" class="tab-i px-4 py-2 rounded-lg text-sm font-semibold transition"><svg class="icon icon-sm"><use href="#i-cart"/></svg> Compras</button>
     <button id="btnTabStock"  onclick="switchTab('stock')"  class="tab-i px-4 py-2 rounded-lg text-sm font-semibold transition"><svg class="icon icon-sm"><use href="#i-package"/></svg> Stock</button>
   </nav>
 
@@ -326,6 +328,153 @@
     </div>
   </div>
 
+  <!-- ====== TAB COMPRAS ====== -->
+  <div id="tabCompras" class="hidden">
+    <div class="card rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end filter-bar filters-bar">
+      <div><label class="t3 text-xs block mb-1">Desde</label><input type="date" id="filtroDesdeCompras" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="applyPurchaseFilters()"/></div>
+      <div><label class="t3 text-xs block mb-1">Hasta</label><input type="date" id="filtroHastaCompras" class="inp rounded-lg px-3 py-1.5 text-sm" onchange="applyPurchaseFilters()"/></div>
+      <div><label class="t3 text-xs block mb-1">Proveedor</label><input type="text" id="filtroProveedor" placeholder="Buscar proveedor..." class="inp rounded-lg px-3 py-1.5 text-sm w-44" oninput="applyPurchaseFilters()"/></div>
+      <div><label class="t3 text-xs block mb-1">Meta diaria (CLP)</label><input type="number" id="metaDiariaCompras" placeholder="0" class="inp rounded-lg px-3 py-1.5 text-sm w-36" oninput="applyPurchaseFilters()"/></div>
+      <button onclick="clearComprasFilters()" class="px-3 py-1.5 text-xs t2 hover:text-white card rounded-lg transition print-hide"><svg class="icon icon-sm"><use href="#i-x"/></svg> Limpiar</button>
+    </div>
+
+    <div id="comprasLoadingState" class="text-center py-20">
+      <div class="inline-block w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      <p class="mt-3 t2">Consultando SAP...</p>
+    </div>
+    <div id="comprasErrorState" class="hidden text-center py-20">
+      <p class="text-lg flex items-center justify-center gap-2" style="color:var(--dn)"><svg class="icon icon-lg"><use href="#i-alert"/></svg>Error al cargar datos</p>
+      <p id="comprasErrorMsg" class="t3 text-sm mt-2"></p>
+    </div>
+
+    <div id="dashboardCompras" class="hidden space-y-5">
+
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card rounded-xl p-5" id="cardTotalCompras">
+          <p class="t2 text-xs uppercase tracking-wider mb-1">Total Comprado</p>
+          <p id="kpiTotalCompras" class="kv text-2xl font-bold text-emerald-400">—</p>
+          <p id="kpiTotalComprasTrend" class="text-xs mt-1 ne">— vs período anterior</p>
+        </div>
+        <div class="card rounded-xl p-5">
+          <p class="t2 text-xs uppercase tracking-wider mb-1">Facturas de Compra</p>
+          <p id="kpiPurchaseInvoices" class="kv text-2xl font-bold text-indigo-400">—</p>
+          <p id="kpiPurchaseInvoicesTrend" class="text-xs mt-1 ne">— vs período anterior</p>
+        </div>
+        <div class="card rounded-xl p-5">
+          <p class="t2 text-xs uppercase tracking-wider mb-1">Órdenes de Compra</p>
+          <p id="kpiPurchaseOrders" class="kv text-2xl font-bold text-sky-400">—</p>
+          <p id="kpiPurchaseOrdersTrend" class="text-xs mt-1 ne">— vs período anterior</p>
+        </div>
+        <div class="card rounded-xl p-5">
+          <p class="t2 text-xs uppercase tracking-wider mb-1">Recepciones</p>
+          <p id="kpiPurchaseDeliveries" class="kv text-2xl font-bold text-violet-400">—</p>
+          <p id="kpiPurchaseDeliveriesTrend" class="text-xs mt-1 ne">— vs período anterior</p>
+        </div>
+      </section>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="card rounded-xl p-5 print-hide">
+          <h2 class="text-sm font-semibold t2 mb-4">Compras por Día (CLP)</h2>
+          <canvas id="purchasesChart"></canvas>
+        </div>
+        <div class="card rounded-xl p-5 print-hide">
+          <h2 class="text-sm font-semibold t2 mb-4">Tendencia 14 días</h2>
+          <canvas id="trendChartCompras"></canvas>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="card rounded-xl p-5 flex flex-col items-center print-hide">
+          <h2 class="text-sm font-semibold t2 mb-4 self-start">Actual vs Período Anterior</h2>
+          <canvas id="donutChartCompras" style="max-height:260px;max-width:260px;"></canvas>
+        </div>
+        <div class="card rounded-xl p-5">
+          <h2 class="text-sm font-semibold t2 mb-4">Top 5 Proveedores</h2>
+          <div id="topProviders" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <div class="card rounded-xl p-5">
+        <h2 class="text-sm font-semibold t2 mb-1">Mapa de Calor de Compras</h2>
+        <p class="t3 text-xs mb-4">Año completo · días con datos cargados resaltados</p>
+        <div id="heatmapContainerCompras" class="overflow-x-auto"></div>
+      </div>
+
+      <div class="accordion-section card rounded-xl p-5">
+        <button onclick="toggleAccordion('purchaseInvoices')" class="accordion-toggle flex items-center justify-between gap-3 text-left w-full">
+          <div>
+            <h2 class="text-sm font-semibold t2">Detalle de Facturas de Compra</h2>
+            <p id="comprasCount" class="t3 text-xs mt-0.5"></p>
+          </div>
+          <svg id="purchaseInvoicesChevron" class="icon chev open"><use href="#i-chevron"/></svg>
+        </button>
+        <div id="purchaseInvoicesContent" class="accordion-content mt-4">
+          <div class="flex justify-end gap-2 mb-3 print-hide">
+            <button onclick="printCompras()" class="export-btn px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-print"/></svg> Imprimir</button>
+            <button onclick="exportComprasCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="t2 border-b text-left" style="border-color:var(--border)">
+                <th class="pb-2 pr-4">N° Doc</th><th class="pb-2 pr-4">Proveedor</th>
+                <th class="pb-2 pr-4">Fecha</th><th class="pb-2 pr-4 text-right">Total (CLP)</th><th class="pb-2">Estado</th>
+              </tr></thead>
+              <tbody id="purchaseInvoicesTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-section card rounded-xl p-5">
+        <button onclick="toggleAccordion('purchaseOrders')" class="accordion-toggle flex items-center justify-between gap-3 text-left">
+          <div>
+            <h2 class="text-sm font-semibold t2">Órdenes de Compra</h2>
+            <p id="purchaseOrdersCount" class="t3 text-xs mt-0.5">0 documentos</p>
+          </div>
+          <svg id="purchaseOrdersChevron" class="icon chev"><use href="#i-chevron"/></svg>
+        </button>
+        <div id="purchaseOrdersContent" class="accordion-content hidden mt-4">
+          <div class="flex justify-end mb-3 print-hide">
+            <button onclick="exportPurchaseOrdersCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="t2 border-b text-left" style="border-color:var(--border)">
+                <th class="pb-2 pr-4">N° Doc</th><th class="pb-2 pr-4">Proveedor</th>
+                <th class="pb-2 pr-4">Fecha</th><th class="pb-2 pr-4 text-right">Total (CLP)</th><th class="pb-2">Estado</th>
+              </tr></thead>
+              <tbody id="purchaseOrdersTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-section card rounded-xl p-5">
+        <button onclick="toggleAccordion('purchaseDeliveries')" class="accordion-toggle flex items-center justify-between gap-3 text-left">
+          <div>
+            <h2 class="text-sm font-semibold t2">Recepciones de Mercancía</h2>
+            <p id="purchaseDeliveriesCount" class="t3 text-xs mt-0.5">0 documentos</p>
+          </div>
+          <svg id="purchaseDeliveriesChevron" class="icon chev"><use href="#i-chevron"/></svg>
+        </button>
+        <div id="purchaseDeliveriesContent" class="accordion-content hidden mt-4">
+          <div class="flex justify-end mb-3 print-hide">
+            <button onclick="exportPurchaseDeliveriesCSV()" class="export-btn px-3 py-1.5 text-xs bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition"><svg class="icon icon-sm"><use href="#i-download"/></svg> Exportar CSV</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="t2 border-b text-left" style="border-color:var(--border)">
+                <th class="pb-2 pr-4">N° Doc</th><th class="pb-2 pr-4">Proveedor</th>
+                <th class="pb-2 pr-4">Fecha</th><th class="pb-2 pr-4 text-right">Total (CLP)</th><th class="pb-2">Estado</th>
+              </tr></thead>
+              <tbody id="purchaseDeliveriesTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ====== TAB STOCK ====== -->
   <div id="tabStock" class="hidden">
     <div class="card rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end filter-bar filters-bar">
@@ -404,24 +553,31 @@
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4hbghlmaLSHIolQ11c5cGafG-OJbTlBkKRS4PvRFQO_l3Pr4ocwEnUiedq2R9qkUX/exec';
     //const STOCK_URL       = 'https://script.google.com/macros/s/AKfycbwMOqbjNAgWsvwk6nHalxGZK8XkK8EEXt7XdbA_XeFT-GsW6NOoQkJm9-snx0GCb-4/exec?action=stock';
     const STOCK_URL       = 'https://script.google.com/macros/s/AKfycby4hbghlmaLSHIolQ11c5cGafG-OJbTlBkKRS4PvRFQO_l3Pr4ocwEnUiedq2R9qkUX/exec';
+    // Apps Script INDEPENDIENTE de Compras (proyecto nuevo, ver CodePurchases.gs).
+    // Reemplaza esta URL por la de TU deployment tras publicarlo.
+    const PURCHASES_URL   = 'https://script.google.com/macros/s/AKfycbxQBk5jj-3FDI69hVYIWbKvqDHB0IzxCje3M1lhMOz7bb2rQvVezuCCY7HaghAzuNg-/exec';
     const DAYS_BACK = 14; // días totales a pedir (14 = 7 actuales + 7 anteriores)
     const PERIOD    = 7;  // días de cada período para comparativa
     const MAX_FILAS = 300;
     // Rango efectivamente pedido al backend; se amplía cuando los filtros de fecha lo exceden
     let currentDaysBack = DAYS_BACK;
     let currentDateTo   = '';
+    // Igual que arriba pero para el endpoint independiente de Compras
+    let currentPurchaseDaysBack = DAYS_BACK;
+    let currentPurchaseDateTo   = '';
     // =========================================================
 
     const fmt    = new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0});
     const fmtNum = new Intl.NumberFormat('es-CL',{maximumFractionDigits:2});
 
-    let salesChart,donutChart,trendChart,stockChart;
-    let tabActual='ventas', rawData=null, stockData=null;
+    let salesChart,donutChart,trendChart,stockChart,purchasesChart,trendChartCompras,donutChartCompras;
+    let tabActual='ventas', rawData=null, stockData=null, rawPurchaseData=null;
     let filteredInvoices=[], filteredOrders=[], filteredDeliveries=[], filteredStockItems=null;
+    let filteredPurchaseInvoices=[], filteredPurchaseOrders=[], filteredPurchaseDeliveries=[];
     let sellers=[], sellerMap={}, companies=[], loadingCount=0;
     let presentationTimer=null;
     let presentationActive=false;
-    const accordionState={invoices:true,orders:false,deliveries:false};
+    const accordionState={invoices:true,orders:false,deliveries:false,purchaseInvoices:true,purchaseOrders:false,purchaseDeliveries:false};
     const monthFmt=new Intl.DateTimeFormat('es-CL',{month:'short'});
 
     // =========================================================
@@ -506,6 +662,7 @@
       localStorage.setItem('theme',l?'light':'dark');
       document.querySelector('meta[name="theme-color"]').setAttribute('content',l?'#ffffff':'#0f172a');
       if(rawData)applyFilters();
+      if(rawPurchaseData)applyPurchaseFilters();
       if(stockData)applyStockFilters();
     }
     (function(){
@@ -517,16 +674,24 @@
     })();
 
     function switchTab(tab){
-      tabActual=tab;const e=tab==='ventas';
-      document.getElementById('tabVentas').classList.toggle('hidden',!e);
-      document.getElementById('tabStock').classList.toggle('hidden',e);
-      document.getElementById('btnTabVentas').className=(e?'tab-a':'tab-i')+' px-4 py-2 rounded-lg text-sm font-semibold transition';
-      document.getElementById('btnTabStock').className=(!e?'tab-a':'tab-i')+' px-4 py-2 rounded-lg text-sm font-semibold transition';
-      document.getElementById('subtitle').textContent=e?'Ventas · Últimos 14 días':'Stock por bodega';
-      if(e&&rawData)renderHeatmap(filteredInvoices);
-      if(!e&&!stockData)loadStock();
+      tabActual=tab;
+      const isVentas=tab==='ventas',isCompras=tab==='compras',isStock=tab==='stock';
+      document.getElementById('tabVentas').classList.toggle('hidden',!isVentas);
+      document.getElementById('tabCompras').classList.toggle('hidden',!isCompras);
+      document.getElementById('tabStock').classList.toggle('hidden',!isStock);
+      document.getElementById('btnTabVentas').className=(isVentas?'tab-a':'tab-i')+' px-4 py-2 rounded-lg text-sm font-semibold transition';
+      document.getElementById('btnTabCompras').className=(isCompras?'tab-a':'tab-i')+' px-4 py-2 rounded-lg text-sm font-semibold transition';
+      document.getElementById('btnTabStock').className=(isStock?'tab-a':'tab-i')+' px-4 py-2 rounded-lg text-sm font-semibold transition';
+      document.getElementById('subtitle').textContent=isVentas?'Ventas · Últimos 14 días':isCompras?'Compras · Últimos 14 días':'Stock por bodega';
+      if(isVentas&&rawData)renderHeatmap(filteredInvoices);
+      if(isCompras){rawPurchaseData?applyPurchaseFilters():loadPurchaseData(true);}
+      if(isStock&&!stockData)loadStock();
     }
-    function refreshActive(){tabActual==='ventas'?loadData():loadStock(true);}
+    function refreshActive(){
+      if(tabActual==='compras')return loadPurchaseData(true);
+      if(tabActual==='stock')return loadStock(true);
+      return loadData();
+    }
 
     function getSelectedCompany(){return document.getElementById('selectorEmpresa').value||'';}
     function buildUrl(baseUrl,params){
@@ -551,6 +716,10 @@
     function getStockUrl(force){
       const creds = getCredParams();
       return buildUrl(STOCK_URL,{action:'stock',company:getSelectedCompany(),refresh:force?'1':'',...creds,_t:Date.now()});
+    }
+    function getPurchasesUrl(){
+      const creds = getCredParams();
+      return buildUrl(PURCHASES_URL,{daysBack:currentPurchaseDaysBack,dateTo:currentPurchaseDateTo,...creds,_t:Date.now()});
     }
 
     function setLoading(isLoading){
@@ -583,10 +752,14 @@
     }
     async function changeCompany(){
       rawData=null;stockData=null;filteredInvoices=[];filteredOrders=[];filteredDeliveries=[];filteredStockItems=null;
+      filteredPurchaseInvoices=[];filteredPurchaseOrders=[];filteredPurchaseDeliveries=[];
       currentDaysBack=DAYS_BACK;currentDateTo='';
       document.getElementById('invoicesTable').innerHTML='';
       document.getElementById('ordersTable').innerHTML='';
       document.getElementById('deliveriesTable').innerHTML='';
+      document.getElementById('purchaseInvoicesTable').innerHTML='';
+      document.getElementById('purchaseOrdersTable').innerHTML='';
+      document.getElementById('purchaseDeliveriesTable').innerHTML='';
       document.getElementById('stockTableBody').innerHTML='';
       await loadData(true);
       if(tabActual==='stock')await loadStock();
@@ -619,6 +792,29 @@
       }
     }
 
+    // ---- Compras: endpoint independiente (CodePurchases.gs), no depende de rawData ----
+    async function loadPurchaseData(resetDates){
+      showLoadingCompras();
+      setLoading(true);
+      try{
+        const res=await fetch(getPurchasesUrl());
+        if(!res.ok)throw new Error('HTTP '+res.status);
+        rawPurchaseData=await res.json();
+        if(rawPurchaseData.error){
+          const msg = rawPurchaseData.message||'Error en Apps Script';
+          rawPurchaseData=null;
+          showErrorCompras('Error SAP: '+msg+' — Verifica las credenciales en Configuración');
+          return;
+        }
+        if(resetDates||!document.getElementById('filtroDesdeCompras').value||!document.getElementById('filtroHastaCompras').value)setDefaultPurchaseFilters();
+        applyPurchaseFilters();
+      }catch(err){
+        showErrorCompras(err.message);
+      }finally{
+        setLoading(false);
+      }
+    }
+
     async function populateSellers(response){
       sellers=[];sellerMap={};
       if(response&&response.ok){
@@ -637,6 +833,12 @@
       const from=new Date(today);from.setDate(today.getDate()-PERIOD+1);
       document.getElementById('filtroDesde').value=from.toISOString().substring(0,10);
       document.getElementById('filtroHasta').value=today.toISOString().substring(0,10);
+    }
+    function setDefaultPurchaseFilters(){
+      const today=new Date();
+      const from=new Date(today);from.setDate(today.getDate()-PERIOD+1);
+      document.getElementById('filtroDesdeCompras').value=from.toISOString().substring(0,10);
+      document.getElementById('filtroHastaCompras').value=today.toISOString().substring(0,10);
     }
 
     function applyFilters(){
@@ -698,8 +900,8 @@
       return true;
     }
 
-    function splitPeriods(desde,hasta){
-      const all=rawData.invoices||[];
+    function splitPeriods(desde,hasta,sourceKey,dataset){
+      const all=(dataset||rawData)[sourceKey||'invoices']||[];
       const end=hasta?new Date(hasta):new Date();
       const start=desde?new Date(desde):(()=>{const d=new Date(end);d.setDate(end.getDate()-PERIOD+1);return d;})();
       const prevStart=new Date(start);prevStart.setDate(start.getDate()-PERIOD);
@@ -707,6 +909,60 @@
         current:all.filter(d=>{const dt=new Date((d.DocDate||'').substring(0,10));return dt>=start&&dt<=end;}),
         previous:all.filter(d=>{const dt=new Date((d.DocDate||'').substring(0,10));return dt>=prevStart&&dt<start;})
       };
+    }
+
+    // Igual que expandRangeIfNeeded pero para el endpoint independiente de Compras
+    function expandPurchaseRangeIfNeeded(desde,hasta){
+      if(!rawPurchaseData.dateFrom)return false;
+      const hoy=dateKey(new Date());
+      const coveredFrom=rawPurchaseData.dateFrom;
+      const coveredTo=rawPurchaseData.dateTo||hoy;
+      const needFrom=desde?dateKey(shiftDate(new Date(desde+'T00:00:00'),-PERIOD)):coveredFrom;
+      if(needFrom>=coveredFrom&&(!hasta||hasta<=coveredTo))return false;
+      let days=currentPurchaseDaysBack;
+      if(desde){
+        const diff=Math.ceil((new Date(hoy+'T00:00:00')-new Date(desde+'T00:00:00'))/86400000);
+        days=Math.max(DAYS_BACK,Math.min(diff+PERIOD+2,7300));
+      }
+      const dateTo=(hasta&&hasta<hoy)?hasta:'';
+      if(days===currentPurchaseDaysBack&&dateTo===currentPurchaseDateTo)return false;
+      currentPurchaseDaysBack=days;
+      currentPurchaseDateTo=dateTo;
+      loadPurchaseData();
+      return true;
+    }
+
+    function applyPurchaseFilters(){
+      if(!rawPurchaseData){renderHeatmap([],{containerId:'heatmapContainerCompras',desdeId:'filtroDesdeCompras',hastaId:'filtroHastaCompras',sourceKey:'purchaseInvoices',dataset:rawPurchaseData});return;}
+      const desde=document.getElementById('filtroDesdeCompras').value;
+      const hasta=document.getElementById('filtroHastaCompras').value;
+      if(expandPurchaseRangeIfNeeded(desde,hasta))return;
+      const proveedor=document.getElementById('filtroProveedor').value.toLowerCase();
+      const metaDia=parseFloat(document.getElementById('metaDiariaCompras').value)||0;
+
+      const ok=d=>{
+        const dia=(d.DocDate||'').substring(0,10);
+        if(desde&&dia<desde)return false;
+        if(hasta&&dia>hasta)return false;
+        if(proveedor&&!(d.CardName||'').toLowerCase().includes(proveedor))return false;
+        return true;
+      };
+      filteredPurchaseInvoices=(rawPurchaseData.purchaseInvoices||[]).filter(ok);
+      filteredPurchaseOrders=(rawPurchaseData.purchaseOrders||[]).filter(ok);
+      filteredPurchaseDeliveries=(rawPurchaseData.purchaseDeliveries||[]).filter(ok);
+      const{current,previous}=splitPeriods(desde,hasta,'purchaseInvoices',rawPurchaseData);
+      renderPurchaseKPIs(filteredPurchaseInvoices,filteredPurchaseOrders,filteredPurchaseDeliveries,current,previous,metaDia);
+      renderPurchaseCharts(current,previous);
+      renderTopProviders(filteredPurchaseInvoices);
+      renderDocumentTable('purchaseInvoicesTable',filteredPurchaseInvoices);
+      renderDocumentTable('purchaseOrdersTable',filteredPurchaseOrders);
+      renderDocumentTable('purchaseDeliveriesTable',filteredPurchaseDeliveries);
+      document.getElementById('purchaseOrdersCount').textContent=`${filteredPurchaseOrders.length} documentos`;
+      document.getElementById('purchaseDeliveriesCount').textContent=`${filteredPurchaseDeliveries.length} documentos`;
+      syncAccordion('purchaseOrders');
+      syncAccordion('purchaseDeliveries');
+      renderHeatmap(filteredPurchaseInvoices,{containerId:'heatmapContainerCompras',desdeId:'filtroDesdeCompras',hastaId:'filtroHastaCompras',sourceKey:'purchaseInvoices',dataset:rawPurchaseData});
+      showDashboardCompras();
     }
 
     function trend(curr,prev){
@@ -735,6 +991,26 @@
       setTrend('kpiInvoicesTrend',inv.length,previous.length);
       setTrend('kpiOrdersTrend',ord.length,previous.length);
       setTrend('kpiDeliveriesTrend',del.length,previous.length);
+    }
+
+    function renderPurchaseKPIs(inv,ord,del,current,previous,metaDia){
+      const tot=inv.reduce((s,d)=>s+(d.DocTotal||0),0);
+      const prevTot=previous.reduce((s,d)=>s+(d.DocTotal||0),0);
+      const dias=[...new Set(inv.map(d=>(d.DocDate||'').substring(0,10)))].length||1;
+      const promDia=tot/dias;
+      const bajo=metaDia&&promDia<metaDia;
+      const el=document.getElementById('kpiTotalCompras');
+      el.textContent=fmt.format(tot);
+      el.className='kv text-2xl font-bold '+(bajo?'text-red-400':'text-emerald-400');
+      document.getElementById('cardTotalCompras').classList.toggle('alert-card',!!bajo);
+      document.getElementById('kpiPurchaseInvoices').textContent=inv.length;
+      document.getElementById('kpiPurchaseOrders').textContent=ord.length;
+      document.getElementById('kpiPurchaseDeliveries').textContent=del.length;
+      document.getElementById('comprasCount').textContent=`${inv.length} facturas mostradas`;
+      setTrend('kpiTotalComprasTrend',tot,prevTot);
+      setTrend('kpiPurchaseInvoicesTrend',inv.length,previous.length);
+      setTrend('kpiPurchaseOrdersTrend',ord.length,previous.length);
+      setTrend('kpiPurchaseDeliveriesTrend',del.length,previous.length);
     }
 
     function byDay(docs){
@@ -797,10 +1073,58 @@
       });
     }
 
+    function renderPurchaseCharts(current,previous){
+      const c=chartColors();
+      const curMap=byDay(current),curDays=Object.keys(curMap).sort();
+
+      if(purchasesChart)purchasesChart.destroy();
+      purchasesChart=new Chart(document.getElementById('purchasesChart').getContext('2d'),{
+        type:'bar',
+        data:{labels:curDays,datasets:[{label:'CLP',data:curDays.map(k=>curMap[k]),backgroundColor:c.primaryBar,borderColor:c.primary,borderWidth:1,borderRadius:4}]},
+        options:{
+          responsive:true,
+          onClick:(_event,elements,chart)=>{
+            if(!elements.length)return;
+            const label=chart.data.labels[elements[0].index];
+            if(!label)return;
+            document.getElementById('filtroDesdeCompras').value=label;
+            document.getElementById('filtroHastaCompras').value=label;
+            applyPurchaseFilters();
+          },
+          plugins:{legend:{display:false}},
+          scales:{x:{ticks:{color:c.ticks},grid:{color:c.grid}},y:{ticks:{color:c.ticks,callback:v=>fmt.format(v)},grid:{color:c.grid}}}
+        }
+      });
+
+      const all14Map=byDay(rawPurchaseData.purchaseInvoices||[]),all14Days=Object.keys(all14Map).sort();
+      if(trendChartCompras)trendChartCompras.destroy();
+      trendChartCompras=new Chart(document.getElementById('trendChartCompras').getContext('2d'),{
+        type:'line',
+        data:{labels:all14Days,datasets:[{label:'Compras diarias',data:all14Days.map(k=>all14Map[k]),borderColor:c.primary,backgroundColor:c.primarySoft,fill:true,tension:.4,pointRadius:4}]},
+        options:{responsive:true,plugins:{legend:{labels:{color:c.ticks}}},scales:{x:{ticks:{color:c.ticks},grid:{color:c.grid}},y:{ticks:{color:c.ticks,callback:v=>fmt.format(v)},grid:{color:c.grid}}}}
+      });
+
+      if(donutChartCompras)donutChartCompras.destroy();
+      const totCur=current.reduce((s,d)=>s+(d.DocTotal||0),0);
+      const totPrev=previous.reduce((s,d)=>s+(d.DocTotal||0),0);
+      donutChartCompras=new Chart(document.getElementById('donutChartCompras').getContext('2d'),{
+        type:'doughnut',
+        data:{labels:['Período actual','Período anterior'],datasets:[{data:[totCur,totPrev],backgroundColor:[c.primary,c.sky],borderColor:'var(--card)',borderWidth:3}]},
+        options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:c.ticks,padding:16}}}}
+      });
+    }
+
     function renderTopClients(inv){
       const m={};inv.forEach(d=>{const n=d.CardName||d.CardCode||'Sin nombre';m[n]=(m[n]||0)+(d.DocTotal||0);});
       const top=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5);const max=top[0]?.[1]||1;
       document.getElementById('topClients').innerHTML=top.map(([name,tot])=>`
+        <div><div class="flex justify-between text-xs mb-1"><span class="t2 truncate max-w-xs">${esc(name)}</span><span class="kv ml-2" style="color:var(--up)">${fmt.format(tot)}</span></div>
+        <div class="w-full rounded-full h-1.5" style="background:var(--border)"><div class="h-1.5 rounded-full" style="background:var(--up);width:${(tot/max*100).toFixed(1)}%"></div></div></div>`).join('');
+    }
+    function renderTopProviders(inv){
+      const m={};inv.forEach(d=>{const n=d.CardName||d.CardCode||'Sin nombre';m[n]=(m[n]||0)+(d.DocTotal||0);});
+      const top=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5);const max=top[0]?.[1]||1;
+      document.getElementById('topProviders').innerHTML=top.map(([name,tot])=>`
         <div><div class="flex justify-between text-xs mb-1"><span class="t2 truncate max-w-xs">${esc(name)}</span><span class="kv ml-2" style="color:var(--up)">${fmt.format(tot)}</span></div>
         <div class="w-full rounded-full h-1.5" style="background:var(--border)"><div class="h-1.5 rounded-full" style="background:var(--up);width:${(tot/max*100).toFixed(1)}%"></div></div></div>`).join('');
     }
@@ -812,8 +1136,14 @@
       n.setDate(n.getDate()+days);
       return n;
     }
-    function renderHeatmap(invoices){
-      const el=document.getElementById('heatmapContainer');
+    function renderHeatmap(invoices,opts){
+      opts=opts||{};
+      const containerId=opts.containerId||'heatmapContainer';
+      const desdeId=opts.desdeId||'filtroDesde';
+      const hastaId=opts.hastaId||'filtroHasta';
+      const sourceKey=opts.sourceKey||'invoices';
+      const dataset=opts.dataset||rawData;
+      const el=document.getElementById(containerId);
       if(!el)return;
       const primary=cssVar('--primary');
       const levels=[hexToRgba(primary,.25),hexToRgba(primary,.45),hexToRgba(primary,.7),primary];
@@ -825,8 +1155,8 @@
       const max=Math.max(0,...Object.values(totals));
 
       // Rango dinámico: usa los filtros del header si están definidos
-      const desdeVal=document.getElementById('filtroDesde')?.value;
-      const hastaVal=document.getElementById('filtroHasta')?.value;
+      const desdeVal=document.getElementById(desdeId)?.value;
+      const hastaVal=document.getElementById(hastaId)?.value;
       let end=new Date();end.setHours(0,0,0,0);
       let start=shiftDate(end,-364);
       if(hastaVal){end=new Date(hastaVal+'T00:00:00');}
@@ -842,10 +1172,10 @@
       const numWeeks=Math.ceil((diffDays+((start.getDay()+6)%7))/7)+1;
       const gridStart=shiftDate(start,-((start.getDay()+6)%7));
 
-      // Días con datos: todos los que tienen facturación en los invoices actuales
+      // Días con datos: todos los que tienen facturación en los documentos actuales
       const loadedDays=new Set(Object.keys(totals));
-      if(rawData){
-        (rawData.invoices||[]).forEach(d=>{
+      if(dataset){
+        (dataset[sourceKey]||[]).forEach(d=>{
           const k=(d.DocDate||'').substring(0,10);
           if(k)loadedDays.add(k);
         });
@@ -947,9 +1277,10 @@
     function startSlideshow(){
       stopSlideshow();
       const secs=parseInt(document.getElementById('slideInterval').value,10);
+      const order=['ventas','compras','stock'];
       presentationTimer=setInterval(()=>{
-        const next=tabActual==='ventas'?'stock':'ventas';
-        switchTab(next);
+        const idx=order.indexOf(tabActual);
+        switchTab(order[(idx+1)%order.length]);
       },secs*1000);
     }
     function stopSlideshow(){
@@ -975,6 +1306,23 @@
       ]);
     }
     function clearVentasFilters(){['filtroDesde','filtroHasta','filtroCliente','filtroVendedor','metaDiaria'].forEach(id=>document.getElementById(id).value='');applyFilters();}
+
+    function printCompras(){
+      accordionState.purchaseOrders=true;accordionState.purchaseDeliveries=true;
+      syncAccordion('purchaseOrders');syncAccordion('purchaseDeliveries');
+      window.print();
+    }
+    function exportComprasCSV(){exportPurchaseDocumentsCSV(filteredPurchaseInvoices,'compras_sap.csv');}
+    function exportPurchaseOrdersCSV(){exportPurchaseDocumentsCSV(filteredPurchaseOrders,'ordenes_compra_sap.csv');}
+    function exportPurchaseDeliveriesCSV(){exportPurchaseDocumentsCSV(filteredPurchaseDeliveries,'recepciones_compra_sap.csv');}
+    function exportPurchaseDocumentsCSV(data,name){
+      exportCSV(data,name,[
+        {k:'DocNum',l:'N° Doc'},{k:'CardCode',l:'Código Proveedor'},{k:'CardName',l:'Proveedor'},
+        {k:'DocDate',l:'Fecha',fn:v=>(v||'').substring(0,10)},{k:'DocTotal',l:'Total CLP'},
+        {k:'DocumentStatus',l:'Estado',fn:v=>getStatusLabel(v)}
+      ]);
+    }
+    function clearComprasFilters(){['filtroDesdeCompras','filtroHastaCompras','filtroProveedor','metaDiariaCompras'].forEach(id=>document.getElementById(id).value='');applyPurchaseFilters();}
 
     async function loadStock(force){
       document.getElementById('stockLoading').classList.remove('hidden');
@@ -1089,6 +1437,9 @@
     function showLoading(){['loadingState'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['errorState','dashboard'].forEach(i=>document.getElementById(i).classList.add('hidden'));}
     function showError(m){['errorState'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['loadingState','dashboard'].forEach(i=>document.getElementById(i).classList.add('hidden'));document.getElementById('errorMsg').textContent=m;}
     function showDashboard(){['dashboard'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['loadingState','errorState'].forEach(i=>document.getElementById(i).classList.add('hidden'));}
+    function showLoadingCompras(){['comprasLoadingState'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['comprasErrorState','dashboardCompras'].forEach(i=>document.getElementById(i).classList.add('hidden'));}
+    function showErrorCompras(m){['comprasErrorState'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['comprasLoadingState','dashboardCompras'].forEach(i=>document.getElementById(i).classList.add('hidden'));document.getElementById('comprasErrorMsg').textContent=m;}
+    function showDashboardCompras(){['dashboardCompras'].forEach(i=>document.getElementById(i).classList.remove('hidden'));['comprasLoadingState','comprasErrorState'].forEach(i=>document.getElementById(i).classList.add('hidden'));}
 
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('/sap-dashboard/sw.js').catch(()=>{});
